@@ -1,0 +1,274 @@
+/**
+ * BET-17 checkpoint 1 — fixed set of audit action identifiers.
+ *
+ * `AuditLog.action` is stored as a plain string (not a schema enum)
+ * so future actions never require a migration, but every call site
+ * in this checkpoint draws from this fixed list rather than
+ * inventing ad-hoc strings inline — keeps the collection queryable
+ * and consistent. Extend this file, don't hardcode new literals in
+ * controllers/services.
+ */
+
+export const AUDIT_ACTIONS = Object.freeze({
+  // --- User actions (self-service, non-administrative) ---
+  USER_PROFILE_UPDATE: 'USER_PROFILE_UPDATE',
+  USER_PREFERENCES_UPDATE: 'USER_PREFERENCES_UPDATE',
+  PATIENT_SELF_PROFILE_UPDATE: 'PATIENT_SELF_PROFILE_UPDATE',
+  APPOINTMENT_SELF_BOOK: 'APPOINTMENT_SELF_BOOK',
+  APPOINTMENT_SELF_CANCEL: 'APPOINTMENT_SELF_CANCEL',
+  APPOINTMENT_SELF_RESCHEDULE: 'APPOINTMENT_SELF_RESCHEDULE',
+
+  // --- Account lifecycle (BET-17 checkpoint 3, master prompt §38) ---
+  ACCOUNT_DELETION_REQUESTED: 'ACCOUNT_DELETION_REQUESTED',
+  ACCOUNT_DELETION_CANCELLED: 'ACCOUNT_DELETION_CANCELLED',
+  ACCOUNT_DELETION_APPROVED: 'ACCOUNT_DELETION_APPROVED',
+  ACCOUNT_DELETION_REJECTED: 'ACCOUNT_DELETION_REJECTED',
+
+  // --- Administrative actions ---
+  USER_CREATE_BY_ADMIN: 'USER_CREATE_BY_ADMIN',
+  USER_ROLE_CHANGE: 'USER_ROLE_CHANGE',
+  USER_STATUS_CHANGE: 'USER_STATUS_CHANGE',
+  USER_DETAILS_UPDATE_BY_ADMIN: 'USER_DETAILS_UPDATE_BY_ADMIN',
+  PROTECTED_ACCOUNT_ACTION_BLOCKED: 'PROTECTED_ACCOUNT_ACTION_BLOCKED',
+  // BET-05 User Account Management — admin-initiated password reset.
+  // The previous password hash is overwritten; neither the old nor
+  // the new password ever appears in audit records (only metadata
+  // like 'actor', 'targetUserId', and timestamp are stored).
+  USER_PASSWORD_RESET_BY_ADMIN: 'USER_PASSWORD_RESET_BY_ADMIN',
+  // Admin-initiated account deletion / deactivation. Protected accounts
+  // are excluded at the service layer; this event is recorded after
+  // the action succeeds and includes the target user's id and role.
+  USER_DELETE_BY_ADMIN: 'USER_DELETE_BY_ADMIN',
+  STAFF_PROFILE_CREATE: 'STAFF_PROFILE_CREATE',
+  STAFF_STATUS_CHANGE: 'STAFF_STATUS_CHANGE',
+  ROLE_CREATE: 'ROLE_CREATE',
+  ROLE_UPDATE: 'ROLE_UPDATE',
+  ROLE_DELETE: 'ROLE_DELETE',
+  ROLE_PERMISSIONS_UPDATE: 'ROLE_PERMISSIONS_UPDATE',
+
+  // --- Clinical record access (modules without their own
+  //     dedicated access log — gynecology/reports already have one,
+  //     see audit.model.js docstring) ---
+  PATIENT_RECORD_VIEW: 'PATIENT_RECORD_VIEW',
+  MEDICAL_HISTORY_VIEW: 'MEDICAL_HISTORY_VIEW',
+  OBSTETRIC_RECORD_VIEW: 'OBSTETRIC_RECORD_VIEW',
+  ENCOUNTER_VIEW: 'ENCOUNTER_VIEW',
+  PRESCRIPTION_VIEW: 'PRESCRIPTION_VIEW',
+  INVESTIGATION_VIEW: 'INVESTIGATION_VIEW',
+
+  // --- Record creation ---
+  PATIENT_CREATE: 'PATIENT_CREATE',
+  OBSTETRIC_RECORD_CREATE: 'OBSTETRIC_RECORD_CREATE',
+  ENCOUNTER_CREATE: 'ENCOUNTER_CREATE',
+  PRESCRIPTION_CREATE: 'PRESCRIPTION_CREATE',
+  INVESTIGATION_ORDER_CREATE: 'INVESTIGATION_ORDER_CREATE',
+  REPORT_CREATE: 'REPORT_CREATE',
+  APPOINTMENT_CREATE: 'APPOINTMENT_CREATE',
+  INVOICE_CREATE: 'INVOICE_CREATE',
+  GYNECOLOGY_RECORD_CREATE: 'GYNECOLOGY_RECORD_CREATE',
+  FEE_CREATE: 'FEE_CREATE',
+  PAYMENT_CREATE: 'PAYMENT_CREATE',
+
+  // --- Record modification (checkpoint 1, second half) ---
+  // Patients: general profile fields plus every embedded
+  // medical-history sub-resource (allergy/condition/surgery/
+  // medication/family/social/vaccination) — one add/update/remove
+  // triad of actions shared across all seven sub-resource kinds,
+  // with `metadata.historyType` distinguishing which one, rather
+  // than 21 near-identical action identifiers.
+  PATIENT_PROFILE_UPDATE: 'PATIENT_PROFILE_UPDATE',
+  PATIENT_MEDICAL_HISTORY_ITEM_ADD: 'PATIENT_MEDICAL_HISTORY_ITEM_ADD',
+  PATIENT_MEDICAL_HISTORY_ITEM_UPDATE: 'PATIENT_MEDICAL_HISTORY_ITEM_UPDATE',
+  PATIENT_MEDICAL_HISTORY_ITEM_REMOVE: 'PATIENT_MEDICAL_HISTORY_ITEM_REMOVE',
+  PATIENT_DEACTIVATE: 'PATIENT_DEACTIVATE',
+  PATIENT_REACTIVATE: 'PATIENT_REACTIVATE',
+
+  ENCOUNTER_UPDATE: 'ENCOUNTER_UPDATE',
+  ENCOUNTER_FINALIZE: 'ENCOUNTER_FINALIZE',
+  ENCOUNTER_AMEND: 'ENCOUNTER_AMEND',
+
+  PRESCRIPTION_UPDATE: 'PRESCRIPTION_UPDATE',
+  PRESCRIPTION_FINALIZE: 'PRESCRIPTION_FINALIZE',
+  PRESCRIPTION_REVISE: 'PRESCRIPTION_REVISE',
+
+  INVESTIGATION_SCHEDULE: 'INVESTIGATION_SCHEDULE',
+  INVESTIGATION_SAMPLE_COLLECTED: 'INVESTIGATION_SAMPLE_COLLECTED',
+  INVESTIGATION_RESULT_PENDING: 'INVESTIGATION_RESULT_PENDING',
+  INVESTIGATION_CANCEL: 'INVESTIGATION_CANCEL',
+  INVESTIGATION_REJECT: 'INVESTIGATION_REJECT',
+
+  APPOINTMENT_CONFIRM: 'APPOINTMENT_CONFIRM',
+  APPOINTMENT_CANCEL: 'APPOINTMENT_CANCEL',
+  APPOINTMENT_RESCHEDULE: 'APPOINTMENT_RESCHEDULE',
+  APPOINTMENT_NO_SHOW: 'APPOINTMENT_NO_SHOW',
+
+  STAFF_PROFILE_UPDATE: 'STAFF_PROFILE_UPDATE',
+
+  FEE_UPDATE: 'FEE_UPDATE',
+  FEE_ACTIVATE: 'FEE_ACTIVATE',
+  FEE_DEACTIVATE: 'FEE_DEACTIVATE',
+  INVOICE_DISCOUNT_APPLIED: 'INVOICE_DISCOUNT_APPLIED',
+  INVOICE_ITEM_ADDED: 'INVOICE_ITEM_ADDED',
+  INVOICE_ITEM_REMOVED: 'INVOICE_ITEM_REMOVED',
+  INVOICE_CANCEL: 'INVOICE_CANCEL',
+  PAYMENT_REFUND: 'PAYMENT_REFUND',
+  PAYMENT_CANCEL: 'PAYMENT_CANCEL',
+
+  MEDICINE_UPDATE: 'MEDICINE_UPDATE',
+  MEDICINE_DEACTIVATE: 'MEDICINE_DEACTIVATE',
+  MEDICINE_REACTIVATE: 'MEDICINE_REACTIVATE',
+  MEDICINE_IMPORT: 'MEDICINE_IMPORT',
+
+  DOCTOR_SCHEDULE_UPSERT: 'DOCTOR_SCHEDULE_UPSERT',
+  DOCTOR_SCHEDULE_DEACTIVATE: 'DOCTOR_SCHEDULE_DEACTIVATE',
+  BLOCKED_DATE_CREATE: 'BLOCKED_DATE_CREATE',
+  BLOCKED_DATE_REMOVE: 'BLOCKED_DATE_REMOVE',
+
+  CMS_PAGE_UPDATE: 'CMS_PAGE_UPDATE',
+  CMS_PAGE_PUBLISH: 'CMS_PAGE_PUBLISH',
+  CMS_PAGE_UNPUBLISH: 'CMS_PAGE_UNPUBLISH',
+  CMS_PAGE_ARCHIVE: 'CMS_PAGE_ARCHIVE',
+  CMS_SERVICE_UPDATE: 'CMS_SERVICE_UPDATE',
+  CMS_STAT_UPDATE: 'CMS_STAT_UPDATE',
+  CMS_ABOUT_UPDATE: 'CMS_ABOUT_UPDATE',
+  // --- FET-16 (dynamic public website — merged from FET-16) ---
+  CMS_NAVBAR_ITEM_UPDATE: 'CMS_NAVBAR_ITEM_UPDATE',
+  CMS_NAVBAR_REORDER: 'CMS_NAVBAR_REORDER',
+  CMS_CERTIFICATE_UPDATE: 'CMS_CERTIFICATE_UPDATE',
+  CMS_CERTIFICATE_REORDER: 'CMS_CERTIFICATE_REORDER',
+  CMS_HERO_BANNER_UPDATE: 'CMS_HERO_BANNER_UPDATE',
+  CMS_HERO_BANNER_MEDIA_UPLOAD: 'CMS_HERO_BANNER_MEDIA_UPLOAD',
+  CMS_SECTION_UPDATE: 'CMS_SECTION_UPDATE',
+  CMS_SECTION_REORDER: 'CMS_SECTION_REORDER',
+  CMS_SECTION_MEDIA_UPLOAD: 'CMS_SECTION_MEDIA_UPLOAD',
+  // --- FET-16 completion pass — public "Contact" form ---
+  CMS_CONTACT_INQUIRY_SUBMIT: 'CMS_CONTACT_INQUIRY_SUBMIT',
+  CMS_CONTACT_INQUIRY_UPDATE: 'CMS_CONTACT_INQUIRY_UPDATE',
+
+  // --- Record deletion ---
+  MESSAGE_DELETE: 'MESSAGE_DELETE',
+  CMS_PAGE_DELETE: 'CMS_PAGE_DELETE',
+  CMS_SERVICE_DELETE: 'CMS_SERVICE_DELETE',
+  CMS_STAT_DELETE: 'CMS_STAT_DELETE',
+  MEDIA_DELETE: 'MEDIA_DELETE',
+  CMS_NAVBAR_ITEM_DELETE: 'CMS_NAVBAR_ITEM_DELETE',
+  CMS_CERTIFICATE_DELETE: 'CMS_CERTIFICATE_DELETE',
+  CMS_SECTION_DELETE: 'CMS_SECTION_DELETE',
+
+  // --- Record creation (checkpoint 2 additions) ---
+  MEDICINE_CREATE: 'MEDICINE_CREATE',  CMS_PAGE_CREATE: 'CMS_PAGE_CREATE',
+  CMS_SERVICE_CREATE: 'CMS_SERVICE_CREATE',
+  CMS_STAT_CREATE: 'CMS_STAT_CREATE',
+  MEDIA_UPLOAD: 'MEDIA_UPLOAD',
+  CMS_NAVBAR_ITEM_CREATE: 'CMS_NAVBAR_ITEM_CREATE',
+  CMS_CERTIFICATE_CREATE: 'CMS_CERTIFICATE_CREATE',
+  CMS_SECTION_CREATE: 'CMS_SECTION_CREATE',
+
+  // --- Data exports / file access ---
+  PRESCRIPTION_PDF_DOWNLOAD: 'PRESCRIPTION_PDF_DOWNLOAD',
+  PAYMENT_RECEIPT_DOWNLOAD: 'PAYMENT_RECEIPT_DOWNLOAD',
+  MESSAGE_ATTACHMENT_DOWNLOAD: 'MESSAGE_ATTACHMENT_DOWNLOAD',
+
+  // --- Data lifecycle / retention (BET-17 checkpoint 4) ---
+  DATA_RETENTION_PURGE_EXECUTED: 'DATA_RETENTION_PURGE_EXECUTED',
+  DATA_RETENTION_PURGE_DENIED: 'DATA_RETENTION_PURGE_DENIED',
+
+  // --- Backup, recovery & data protection (BET-18) ---
+  BACKUP_TRIGGERED: 'BACKUP_TRIGGERED',
+  BACKUP_COMPLETED: 'BACKUP_COMPLETED',
+  BACKUP_FAILED: 'BACKUP_FAILED',
+  BACKUP_RETENTION_PURGE_EXECUTED: 'BACKUP_RETENTION_PURGE_EXECUTED',
+  RESTORE_TEST_EXECUTED: 'RESTORE_TEST_EXECUTED',
+  RESTORE_EXECUTED: 'RESTORE_EXECUTED',
+  RESTORE_DENIED: 'RESTORE_DENIED',
+
+  // --- FET-20 prerequisite backend — Security Administration ---
+  // Admin-initiated actions on *another* user's security state.
+  // Deliberately distinct from the existing self-service
+  // `SECURITY_EVENT_TYPES.SESSION_REVOKED` (`auth/security-event.model.js`,
+  // written whenever anyone revokes their own session) — these two
+  // record an administrator acting on someone else's account, which
+  // belongs in the general administrative-action trail, not the
+  // authentication event stream.
+  SESSION_REVOKED_BY_ADMIN: 'SESSION_REVOKED_BY_ADMIN',
+  ACCOUNT_UNLOCKED_BY_ADMIN: 'ACCOUNT_UNLOCKED_BY_ADMIN',
+
+  // --- Import/Export & Data Interoperability (BET-19) ---
+  // Deliberately its own choke point rather than reusing the generic
+  // PRESCRIPTION_PDF_DOWNLOAD-style entries above — every one of
+  // these already carries a `DATA_EXPORT`-category record via
+  // `recordExport`/`recordAuditEvent` (see `audit.service.js`); these
+  // action strings just make that category's entries filterable by
+  // exactly which BET-19 operation produced them.
+  TABULAR_EXPORT: 'TABULAR_EXPORT',
+  TABULAR_EXPORT_DENIED: 'TABULAR_EXPORT_DENIED',
+  MEDICAL_RECORD_EXPORT_REQUESTED: 'MEDICAL_RECORD_EXPORT_REQUESTED',
+  CONTROLLED_EXPORT_DOWNLOADED: 'CONTROLLED_EXPORT_DOWNLOADED',
+  CONTROLLED_EXPORT_DOWNLOAD_FAILED: 'CONTROLLED_EXPORT_DOWNLOAD_FAILED',
+  PATIENT_BULK_IMPORT: 'PATIENT_BULK_IMPORT',
+  PATIENT_BULK_IMPORT_DENIED: 'PATIENT_BULK_IMPORT_DENIED',
+
+  // --- Secure Analytics (BET-20) ---
+  // "Analytics authorization" checkpoint: every attempt to view an
+  // analytics domain is recorded, allowed or denied, mirroring the
+  // BET-19 export logging contract above. Kept as its own set of
+  // action strings (rather than reusing TABULAR_EXPORT_DENIED-style
+  // entries) so analytics access is independently filterable in the
+  // audit log — a caller viewing a chart is a materially different
+  // event from a caller downloading a file, even though both are
+  // read-only aggregate-data operations.
+  ANALYTICS_ACCESSED: 'ANALYTICS_ACCESSED',
+  ANALYTICS_ACCESS_DENIED: 'ANALYTICS_ACCESS_DENIED',
+
+  // --- Departments (organizational structure) ---
+  DEPARTMENT_CREATE: 'DEPARTMENT_CREATE',
+  DEPARTMENT_UPDATE: 'DEPARTMENT_UPDATE',
+  DEPARTMENT_DEACTIVATE: 'DEPARTMENT_DEACTIVATE',
+  DEPARTMENT_REACTIVATE: 'DEPARTMENT_REACTIVATE',
+
+  // --- ElevenLabs voice agent (`modules/voice`) ---
+  // Every write-capable tool call gets its own action so the AI's
+  // footprint is independently filterable from the same action taken
+  // through the ordinary UI — `actor`/`actorRole` on the AuditLog row
+  // is still the real authenticated doctor (the agent never acts as
+  // its own identity), `metadata.viaVoiceAgent: true` plus the tool
+  // name is what marks a row as AI-originated. Read-only tools
+  // (search_patient, search_medicine, search_investigation) are not
+  // separately audited here — no existing controller in this project
+  // audits its own read/list/autocomplete endpoints either, and doing
+  // so only for the voice path would make the AI's read footprint
+  // *more* visible than the exact same read made through the UI,
+  // which is not a meaningful security distinction to draw.
+  AI_VOICE_TOOL_DENIED: 'AI_VOICE_TOOL_DENIED',
+  AI_CREATE_PRESCRIPTION: 'AI_CREATE_PRESCRIPTION',
+  AI_ADD_MEDICINE: 'AI_ADD_MEDICINE',
+  AI_UPDATE_MEDICINE: 'AI_UPDATE_MEDICINE',
+  AI_CANCEL_PRESCRIPTION: 'AI_CANCEL_PRESCRIPTION',
+  AI_ADD_INVESTIGATION: 'AI_ADD_INVESTIGATION',
+  AI_ADD_DIAGNOSIS: 'AI_ADD_DIAGNOSIS',
+  AI_UPDATE_VITALS: 'AI_UPDATE_VITALS',
+  AI_UPDATE_CLINICAL_NOTE: 'AI_UPDATE_CLINICAL_NOTE',
+  AI_SET_FOLLOW_UP: 'AI_SET_FOLLOW_UP',
+  AI_FINALIZE_PRESCRIPTION: 'AI_FINALIZE_PRESCRIPTION',
+  AI_BOOK_APPOINTMENT: 'AI_BOOK_APPOINTMENT',
+  AI_CONFIRM_APPOINTMENT: 'AI_CONFIRM_APPOINTMENT',
+  AI_RESCHEDULE_APPOINTMENT: 'AI_RESCHEDULE_APPOINTMENT',
+  AI_CANCEL_APPOINTMENT: 'AI_CANCEL_APPOINTMENT',
+  AI_CREATE_INVOICE: 'AI_CREATE_INVOICE',
+  AI_RECORD_PAYMENT: 'AI_RECORD_PAYMENT',
+  AI_CREATE_LAB_REQUISITION: 'AI_CREATE_LAB_REQUISITION',
+  AI_ISSUE_LAB_REQUISITION: 'AI_ISSUE_LAB_REQUISITION',
+  AI_CANCEL_LAB_REQUISITION: 'AI_CANCEL_LAB_REQUISITION',
+  AI_ASSISTANT_NAME_CHANGE: 'AI_ASSISTANT_NAME_CHANGE',
+  AI_SEARCH_PATIENT: 'AI_SEARCH_PATIENT',
+  AI_REMOVE_MEDICINE: 'AI_REMOVE_MEDICINE',
+  AI_REMOVE_INVESTIGATION: 'AI_REMOVE_INVESTIGATION',
+  AI_ADD_ADVICE: 'AI_ADD_ADVICE',
+  AI_GENERATE_PRESCRIPTION_PDF: 'AI_GENERATE_PRESCRIPTION_PDF',
+  AI_APPLY_INVOICE_DISCOUNT: 'AI_APPLY_INVOICE_DISCOUNT',
+  AI_ADD_INVOICE_ITEM: 'AI_ADD_INVOICE_ITEM',
+  AI_REMOVE_INVOICE_ITEM: 'AI_REMOVE_INVOICE_ITEM',
+  AI_CANCEL_INVOICE: 'AI_CANCEL_INVOICE',
+  AI_REFUND_PAYMENT: 'AI_REFUND_PAYMENT',
+  AI_UPDATE_LAB_REQUISITION: 'AI_UPDATE_LAB_REQUISITION',
+});

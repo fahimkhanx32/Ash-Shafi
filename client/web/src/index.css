@@ -1,0 +1,512 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 215 28% 17%;
+
+    /* Card-color softening fix — pure white (`0 0% 100%`) sitting a
+       hair *brighter* than the page background (`210 40% 98%`) read
+       as sterile/glary rather than "elevated": there was barely any
+       lightness gap to signal elevation, and 100% lightness has zero
+       hue, so it looked stark next to every other cool-toned token
+       here. A soft, slightly-toned-down off-white keeps cards
+       readably distinct via `--border`/shadow without the glare. */
+    --card: 210 32% 97.5%;
+    --card-foreground: 215 28% 17%;
+
+    --primary: 186 68% 30%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 94%;
+    --secondary-foreground: 215 28% 17%;
+
+    --muted: 210 30% 95%;
+    --muted-foreground: 215 15% 45%;
+
+    --accent: 186 55% 94%;
+    --accent-foreground: 186 68% 22%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 25% 89%;
+    --input: 214 25% 89%;
+    --ring: 186 68% 30%;
+
+    --radius: 1rem;
+
+    /* Neumorphic auth screens (see tailwind.config.js shadow.neu*) —
+       a light/dark HSL pair a few steps off `--background`'s own
+       lightness (98%), so the emboss shadow reads against the flat
+       surface it's cast from rather than looking like a generic grey
+       card shadow. Intentionally not swapped per `data-color-theme`:
+       the neumorphic effect is a neutral lighting cue, not a brand
+       color, same reasoning as `--border` staying neutral across
+       themes above. */
+    --neu-shadow-light: 0 0% 100%;
+    --neu-shadow-dark: 214 30% 83%;
+
+    /* FET-03 — typography scale × UI zoom multipliers, applied together
+       in `html`'s font-size below. Set inline per-user by ThemeProvider;
+       these are just safe fallbacks. */
+    --typography-scale: 1;
+    --ui-zoom: 1;
+  }
+
+  /* FET-03 — dark mode. Same token names, dark-appropriate values —
+     nothing that reads these tokens (button.jsx, card.jsx, alert.jsx,
+     the whole clinical module…) needs to change. */
+  .dark {
+    --background: 215 32% 10%;
+    --foreground: 210 30% 92%;
+
+    --card: 215 28% 14%;
+    --card-foreground: 210 30% 92%;
+
+    --primary: 186 55% 48%;
+    --primary-foreground: 215 32% 10%;
+
+    --secondary: 215 24% 20%;
+    --secondary-foreground: 210 30% 92%;
+
+    --muted: 215 24% 18%;
+    --muted-foreground: 215 15% 65%;
+
+    --accent: 186 35% 20%;
+    --accent-foreground: 186 55% 80%;
+
+    --destructive: 0 62% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 20% 24%;
+    --input: 215 20% 24%;
+    --ring: 186 55% 48%;
+
+    /* Dark counterpart of the light-mode pair above — the highlight
+       side has to get *lighter* than `--background` here (dark
+       surfaces are lit from a lighter tone, not white), and the
+       shadow side needs to go darker than the app's near-black floor
+       or it disappears entirely against `--background`'s 10% L. */
+    --neu-shadow-light: 215 26% 18%;
+    --neu-shadow-dark: 220 45% 4%;
+  }
+
+  /* FET-03 — color themes. Overrides the primary/accent/ring hue only;
+     everything else (light/dark neutrals) is unaffected. TEAL is the
+     existing default and needs no override. */
+  [data-color-theme='rose'] {
+    --primary: 346 66% 46%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 346 60% 94%;
+    --accent-foreground: 346 66% 30%;
+    --ring: 346 66% 46%;
+  }
+  .dark[data-color-theme='rose'] {
+    --primary: 346 60% 58%;
+    --accent: 346 30% 22%;
+    --accent-foreground: 346 60% 82%;
+    --ring: 346 60% 58%;
+  }
+
+  [data-color-theme='violet'] {
+    --primary: 258 55% 52%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 258 55% 95%;
+    --accent-foreground: 258 55% 34%;
+    --ring: 258 55% 52%;
+  }
+  .dark[data-color-theme='violet'] {
+    --primary: 258 60% 66%;
+    --accent: 258 30% 24%;
+    --accent-foreground: 258 60% 85%;
+    --ring: 258 60% 66%;
+  }
+
+  [data-color-theme='slate'] {
+    --primary: 215 25% 32%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 215 25% 93%;
+    --accent-foreground: 215 25% 22%;
+    --ring: 215 25% 32%;
+  }
+  .dark[data-color-theme='slate'] {
+    --primary: 215 20% 68%;
+    --primary-foreground: 215 32% 10%;
+    --accent: 215 20% 22%;
+    --accent-foreground: 215 20% 85%;
+    --ring: 215 20% 68%;
+  }
+
+  /* Text-color contrast fix follow-up — user-selectable body-text hue.
+     Each option is a matched light/dark HSL *pair* (never a single
+     fixed value) so switching `mode` between light/dark/system never
+     leaves text unreadable — the exact bug class this preference
+     exists to solve, not reopen. Deliberately touches only
+     `--foreground`/`--card-foreground`/`--secondary-foreground` (the
+     tokens ordinary body text reads) — `--muted-foreground` stays
+     untouched so secondary/helper text keeps its intentionally
+     subdued tone regardless of this choice. 'default' needs no rule:
+     it's exactly the unmodified `--foreground` set above. Declared
+     before `[data-contrast='high']` below so high-contrast mode (an
+     accessibility override) always wins the cascade over a cosmetic
+     text-color pick, regardless of source order in a future edit. */
+  [data-text-color='charcoal'] {
+    --foreground: 220 20% 8%;
+    --card-foreground: 220 20% 8%;
+    --secondary-foreground: 220 20% 8%;
+  }
+  .dark[data-text-color='charcoal'] {
+    --foreground: 0 0% 98%;
+    --card-foreground: 0 0% 98%;
+    --secondary-foreground: 0 0% 98%;
+  }
+
+  [data-text-color='navy'] {
+    --foreground: 213 65% 17%;
+    --card-foreground: 213 65% 17%;
+    --secondary-foreground: 213 65% 17%;
+  }
+  .dark[data-text-color='navy'] {
+    --foreground: 210 60% 87%;
+    --card-foreground: 210 60% 87%;
+    --secondary-foreground: 210 60% 87%;
+  }
+
+  [data-text-color='forest'] {
+    --foreground: 152 45% 15%;
+    --card-foreground: 152 45% 15%;
+    --secondary-foreground: 152 45% 15%;
+  }
+  .dark[data-text-color='forest'] {
+    --foreground: 150 40% 85%;
+    --card-foreground: 150 40% 85%;
+    --secondary-foreground: 150 40% 85%;
+  }
+
+  [data-text-color='plum'] {
+    --foreground: 300 40% 18%;
+    --card-foreground: 300 40% 18%;
+    --secondary-foreground: 300 40% 18%;
+  }
+  .dark[data-text-color='plum'] {
+    --foreground: 300 45% 88%;
+    --card-foreground: 300 45% 88%;
+    --secondary-foreground: 300 45% 88%;
+  }
+
+  /* FET-03 — high contrast accessibility mode. Widens the gap between
+     text/background and thickens borders, on top of whichever
+     light/dark + color theme is active. */
+  [data-contrast='high'] {
+    --foreground: 215 40% 6%;
+    --muted-foreground: 215 25% 28%;
+    --border: 215 30% 55%;
+  }
+  .dark[data-contrast='high'] {
+    --foreground: 0 0% 100%;
+    --muted-foreground: 215 15% 82%;
+    --border: 215 20% 55%;
+  }
+
+  /* Neumorphic surfaces (LoginForm/RegisterForm/AuthLayout) rely on a
+     soft dual-shadow instead of a border to read their edges — exactly
+     the low-contrast cue `data-contrast='high'` exists to eliminate.
+     Give them a real visible border there instead, same override
+     pattern as the rest of this block. */
+  [data-contrast='high'] .neu-surface {
+    box-shadow: none !important;
+    border: 1.5px solid hsl(var(--border));
+  }
+
+  /* Every auth screen (Login/Register/ForgotPassword/ResetPassword/
+     VerifyEmail) is deliberately locked to a single fixed light
+     appearance regardless of the viewer's dark-mode/color-theme/
+     text-color/high-contrast preferences — those are personalization
+     for the authenticated app; none of these pages have a signed-in
+     user yet to personalize for. Applied via AuthLayout's `lightOnly`
+     prop, passed at every one of those pages' call sites. Restates
+     every token `.dark`/the theme-variant blocks above touch, at
+     their plain :root default, so it wins over whatever `<html>`
+     classes/attributes are active by being a closer, directly-
+     declared match rather than an inherited one. */
+  .force-light {
+    --background: 210 40% 98%;
+    --foreground: 215 28% 17%;
+    --card: 210 32% 97.5%;
+    --card-foreground: 215 28% 17%;
+    --primary: 186 68% 30%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 94%;
+    --secondary-foreground: 215 28% 17%;
+    --muted: 210 30% 95%;
+    --muted-foreground: 215 15% 45%;
+    --accent: 186 55% 94%;
+    --accent-foreground: 186 68% 22%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 25% 89%;
+    --input: 214 25% 89%;
+    --ring: 186 68% 30%;
+    --neu-shadow-light: 0 0% 100%;
+    --neu-shadow-dark: 214 30% 83%;
+    color-scheme: light;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+    /* FET-03 — typography scale × zoom, set together so one <html> rule
+       covers both preferences instead of two independent font-size
+       mechanisms fighting each other. */
+    font-size: calc(16px * var(--typography-scale) * var(--ui-zoom));
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+  /* Comfortable minimum touch targets, One UI style */
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* FET-03 — reduced motion. Respects the OS-level preference by default
+   AND an explicit in-app toggle (`.motion-reduce`, set by
+   ThemeProvider) for people whose OS setting isn't in their control
+   (e.g. a shared clinic workstation). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+.motion-reduce *,
+.motion-reduce *::before,
+.motion-reduce *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Prevent any single element from forcing page-wide horizontal scroll */
+img,
+svg,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* FET-03 — built-in wallpaper backgrounds. Purely decorative CSS
+   gradients (no uploaded images — see user.model.js's uiPreferences
+   comment on why upload isn't built yet); applied to <body> by
+   ThemeProvider via `data-wallpaper`. Kept low-contrast so foreground
+   text stays readable over them per master prompt §8. */
+body[data-wallpaper='aurora'] {
+  background-image: radial-gradient(at 15% 10%, hsl(186 55% 92% / 0.6) 0, transparent 55%),
+    radial-gradient(at 85% 85%, hsl(258 55% 93% / 0.5) 0, transparent 55%);
+  background-attachment: fixed;
+}
+body[data-wallpaper='meadow'] {
+  background-image: radial-gradient(at 90% 5%, hsl(150 45% 92% / 0.6) 0, transparent 50%),
+    radial-gradient(at 5% 95%, hsl(186 55% 92% / 0.5) 0, transparent 50%);
+  background-attachment: fixed;
+}
+html.dark body[data-wallpaper='aurora'] {
+  background-image: radial-gradient(at 15% 10%, hsl(186 35% 20% / 0.5) 0, transparent 55%),
+    radial-gradient(at 85% 85%, hsl(258 35% 22% / 0.4) 0, transparent 55%);
+}
+html.dark body[data-wallpaper='meadow'] {
+  background-image: radial-gradient(at 90% 5%, hsl(150 30% 20% / 0.5) 0, transparent 50%),
+    radial-gradient(at 5% 95%, hsl(186 35% 20% / 0.4) 0, transparent 50%);
+}
+
+
+/* FET-22 — real entrance animations. `dialog.jsx` and `toast.jsx`
+   referenced a bare `animate-in` class that was never actually
+   defined anywhere (no `tailwindcss-animate` plugin in this project's
+   package.json — see dialog.jsx's own comment on why there's no
+   Radix/animation dependency here), so those elements were popping in
+   with zero transition. These are small, dependency-free keyframe
+   utilities instead. They're automatically neutralized by the
+   reduced-motion rules above since those target `*`/`*::before/after`
+   globally. */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes zoom-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes slide-in-bottom {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-in-top {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.15s ease-out both;
+}
+.animate-zoom-in {
+  animation: zoom-in 0.15s ease-out both;
+}
+.animate-slide-in-bottom {
+  animation: slide-in-bottom 0.18s ease-out both;
+}
+.animate-slide-in-top {
+  animation: slide-in-top 0.15s ease-out both;
+}
+
+/* FET-17 — RTL readiness rules for html[dir="rtl"] */
+html[dir='rtl'] {
+  text-align: right;
+}
+html[dir='rtl'] .ml-auto {
+  margin-left: unset;
+  margin-right: auto;
+}
+html[dir='rtl'] .mr-auto {
+  margin-right: unset;
+  margin-left: auto;
+}
+html[dir='rtl'] .left-0 {
+  left: auto;
+  right: 0;
+}
+html[dir='rtl'] .right-0 {
+  right: auto;
+  left: 0;
+}
+
+/* ========================================================
+   LEGAL PRESCRIPTION PRINT MEDIA RULES (8.5 × 14 in)
+   ======================================================== */
+@media print {
+  @page {
+    size: 8.5in 14in;
+    margin: 0;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 11pt !important;
+  }
+
+  /* Hide app shell chrome, sidebars, headers, dialog backdrops and buttons */
+  aside,
+  header,
+  nav,
+  .app-sidebar,
+  .app-header,
+  .page-header,
+  .toast-container,
+  button,
+  .no-print,
+  .prescription-workspace-root > div:not(.grid),
+  .prescription-workspace-root .border-b,
+  .prescription-workspace-root .rounded-2xl.border.p-4:first-child,
+  .prescription-workspace-root .space-y-6 {
+    display: none !important;
+  }
+
+  .prescription-preview-wrapper,
+  .requisition-preview-wrapper {
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  /* Force printable prescription to occupy full legal page */
+  #printable-prescription-document {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 8.5in !important;
+    height: 14in !important;
+    min-height: 14in !important;
+    max-height: 14in !important;
+    margin: 0 !important;
+    padding: 0.5in !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    transform: none !important;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+    z-index: 99999 !important;
+    visibility: visible !important;
+  }
+
+  /* Force printable lab requisition to occupy full A4 page with 0.3in margins */
+  #printable-requisition-document {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 8.27in !important;
+    height: 11.69in !important;
+    min-height: 11.69in !important;
+    max-height: 11.69in !important;
+    margin: 0 !important;
+    padding: 0.3in !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    transform: none !important;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+    z-index: 99999 !important;
+    visibility: visible !important;
+  }
+}
+
+/* Suppress native scrollbars for horizontal chip carousels and smooth scrolling */
+.no-native-scrollbar::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar,
+.hide-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+.no-native-scrollbar,
+.no-scrollbar,
+.hide-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Native <select> popups: the control itself is transparent, so on Windows
+   Chromium/Edge the popup list rendered white with white text (invisible
+   options). Give every option an explicit themed background + text colour. */
+select option,
+select optgroup {
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+select option:disabled {
+  color: hsl(var(--muted-foreground));
+}
