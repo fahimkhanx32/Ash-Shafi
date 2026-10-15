@@ -42,7 +42,7 @@ export const searchMedicine = async ({ query, limit = 5 }) => {
       results.length === 1
         ? `Found ${results[0].genericName}${results[0].brandName ? ` (${results[0].brandName})` : ''} ${results[0].strength}${results[0].unit}.`
         : `Found ${results.length} medicines matching "${query}" — which one did you mean?`,
-    requiresConfirmation: results.length > 1,
+    disambiguationNeeded: results.length > 1,
     results,
   };
 };

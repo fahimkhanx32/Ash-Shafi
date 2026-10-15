@@ -28,6 +28,12 @@ const doctorDetailsSchema = Joi.object({
   designationBangla: Joi.string().trim().max(150).allow(''),
   departmentBangla: Joi.string().trim().max(150).allow(''),
   specialtyBangla: Joi.string().trim().max(200).allow(''),
+  designationEnglish: Joi.string().trim().max(150).allow(''),
+  departmentEnglish: Joi.string().trim().max(150).allow(''),
+  hospitalEnglish: Joi.string().trim().max(250).allow(''),
+  hospitalBangla: Joi.string().trim().max(250).allow(''),
+  chamberInfo: Joi.string().trim().max(500).allow(''),
+  visitingHours: Joi.string().trim().max(300).allow(''),
 });
 
 const emergencyContactSchema = Joi.object({

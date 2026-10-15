@@ -49,6 +49,12 @@ const emptyDoctorDetails = {
   designationBangla: '',
   departmentBangla: '',
   specialtyBangla: '',
+  designationEnglish: '',
+  departmentEnglish: '',
+  hospitalEnglish: '',
+  hospitalBangla: '',
+  chamberInfo: '',
+  visitingHours: '',
 };
 
 const toDateInputValue = (date) => {
@@ -118,6 +124,12 @@ export default function MyProfilePage() {
           designationBangla: data.doctorDetails?.designationBangla || '',
           departmentBangla: data.doctorDetails?.departmentBangla || '',
           specialtyBangla: data.doctorDetails?.specialtyBangla || '',
+          designationEnglish: data.doctorDetails?.designationEnglish || '',
+          departmentEnglish: data.doctorDetails?.departmentEnglish || '',
+          hospitalEnglish: data.doctorDetails?.hospitalEnglish || '',
+          hospitalBangla: data.doctorDetails?.hospitalBangla || '',
+          chamberInfo: data.doctorDetails?.chamberInfo || '',
+          visitingHours: data.doctorDetails?.visitingHours || '',
         },
       });
       setState('ready');
@@ -157,6 +169,12 @@ export default function MyProfilePage() {
           designationBangla: form.doctorDetails.designationBangla,
           departmentBangla: form.doctorDetails.departmentBangla,
           specialtyBangla: form.doctorDetails.specialtyBangla,
+          designationEnglish: form.doctorDetails.designationEnglish,
+          departmentEnglish: form.doctorDetails.departmentEnglish,
+          hospitalEnglish: form.doctorDetails.hospitalEnglish,
+          hospitalBangla: form.doctorDetails.hospitalBangla,
+          chamberInfo: form.doctorDetails.chamberInfo,
+          visitingHours: form.doctorDetails.visitingHours,
         };
         if (form.doctorDetails.yearsOfExperience !== '') {
           payload.doctorDetails.yearsOfExperience = Number(form.doctorDetails.yearsOfExperience);
@@ -257,7 +275,7 @@ export default function MyProfilePage() {
           <p className="text-sm text-muted-foreground sm:col-span-2 -mt-2">
             {t(
               'myProfile.clinicalHint',
-              'These appear on your printed prescriptions and lab requisitions — including the Bangla letterhead. Leave the Bangla fields blank to use the practice default.',
+              'These appear on your printed prescriptions and lab requisitions — including the Bangla letterhead. Anything you leave blank is simply left off the letterhead.',
             )}
           </p>
           <FloatInput label={t('myProfile.specialization', 'Specialization (English)')} icon={Stethoscope} value={form.doctorDetails.specialization} onChange={setDoctor('specialization')} />
@@ -267,6 +285,12 @@ export default function MyProfilePage() {
           <FloatInput label={t('myProfile.nameBangla', 'Your name (Bangla)')} icon={Languages} value={form.doctorDetails.nameBangla} onChange={setDoctor('nameBangla')} placeholder="প্রফেসর ডা. ..." />
           <FloatInput label={t('myProfile.designationBangla', 'Designation (Bangla)')} icon={Languages} value={form.doctorDetails.designationBangla} onChange={setDoctor('designationBangla')} placeholder="অধ্যাপক ও বিভাগীয় প্রধান" />
           <FloatInput label={t('myProfile.departmentBangla', 'Department (Bangla)')} icon={Languages} value={form.doctorDetails.departmentBangla} onChange={setDoctor('departmentBangla')} placeholder="কিডনী রোগ ও ডায়ালাইসিস বিভাগ" />
+          <FloatInput label={t('myProfile.designationEnglish', 'Designation (English)')} icon={Briefcase} value={form.doctorDetails.designationEnglish} onChange={setDoctor('designationEnglish')} placeholder="Professor & Head" />
+          <FloatInput label={t('myProfile.departmentEnglish', 'Department (English)')} icon={Stethoscope} value={form.doctorDetails.departmentEnglish} onChange={setDoctor('departmentEnglish')} placeholder="Department of Nephrology" />
+          <FloatInput label={t('myProfile.hospitalEnglish', 'Hospital (English)')} icon={Briefcase} value={form.doctorDetails.hospitalEnglish} onChange={setDoctor('hospitalEnglish')} />
+          <FloatInput label={t('myProfile.hospitalBangla', 'Hospital (Bangla)')} icon={Languages} value={form.doctorDetails.hospitalBangla} onChange={setDoctor('hospitalBangla')} />
+          <FloatTextarea className="sm:col-span-2" label={t('myProfile.chamberInfo', 'Chamber address & contact (prescription footer)')} icon={FileText} value={form.doctorDetails.chamberInfo} onChange={setDoctor('chamberInfo')} />
+          <FloatInput className="sm:col-span-2" label={t('myProfile.visitingHours', 'Visiting hours')} icon={Briefcase} value={form.doctorDetails.visitingHours} onChange={setDoctor('visitingHours')} />
           <FloatInput label={t('myProfile.registrationNumber', 'Registration number (BM&DC)')} icon={Hash} value={form.doctorDetails.registrationNumber} onChange={setDoctor('registrationNumber')} />
           <FloatInput label={t('myProfile.yearsOfExperience', 'Years of experience')} icon={Briefcase} type="number" min="0" max="80" value={form.doctorDetails.yearsOfExperience} onChange={setDoctor('yearsOfExperience')} />
           <FloatTextarea className="sm:col-span-2" label={t('myProfile.bio', 'Short bio')} icon={FileText} value={form.doctorDetails.bio} onChange={setDoctor('bio')} />

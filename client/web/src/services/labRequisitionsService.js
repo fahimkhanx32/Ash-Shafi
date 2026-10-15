@@ -26,6 +26,11 @@ export const updateRequisition = async (id, payload) => {
   return withId(data.data);
 };
 
+export const listReferringDoctors = async () => {
+  const { data } = await apiClient.get('/lab-requisitions/referring-doctors');
+  return data.data || []; // [{ id, name, qualifications, bmdc, chamberAddress, phone, specialization }]
+};
+
 export const getRequisition = async (id) => {
   const { data } = await apiClient.get(`/lab-requisitions/${id}`);
   return withId(data.data);

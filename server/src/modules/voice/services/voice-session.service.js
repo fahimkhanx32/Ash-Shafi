@@ -6,6 +6,37 @@ const ELEVENLABS_SIGNED_URL_ENDPOINT = 'https://api.elevenlabs.io/v1/convai/conv
 
 const DEFAULT_ASSISTANT_NAME = 'Ash-Shāfī Assistant';
 
+// A hung or briefly flaky call to ElevenLabs must not leave the doctor
+// staring at "Connecting…" or fail the whole session on one blip: each
+// attempt is time-boxed and a network error / 5xx is retried with backoff.
+const SIGNED_URL_TIMEOUT_MS = 20000;
+const SIGNED_URL_MAX_ATTEMPTS = 3;
+const SIGNED_URL_RETRY_DELAY_MS = 800;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const fetchSignedUrlWithRetry = async (url) => {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'xi-api-key': env.elevenlabs.apiKey },
+        signal: AbortSignal.timeout(SIGNED_URL_TIMEOUT_MS),
+      });
+
+      if (response.status >= 500 && attempt < SIGNED_URL_MAX_ATTEMPTS) {
+        await sleep(SIGNED_URL_RETRY_DELAY_MS * attempt);
+        continue;
+      }
+
+      return response;
+    } catch (err) {
+      if (attempt >= SIGNED_URL_MAX_ATTEMPTS) throw err;
+      await sleep(SIGNED_URL_RETRY_DELAY_MS * attempt);
+    }
+  }
+};
+
 /**
  * Creates a fresh ElevenLabs conversation session for the authenticated
  * doctor (master prompt §6, §35).
@@ -45,26 +76,35 @@ export const createVoiceSession = async (actor) => {
 
   let response;
   try {
-    response = await fetch(url, {
-      method: 'GET',
-      headers: { 'xi-api-key': env.elevenlabs.apiKey },
-    });
+    response = await fetchSignedUrlWithRetry(url);
   } catch (err) {
     logger.error({ err }, 'Failed to reach ElevenLabs while creating a voice session.');
-    throw new AppError('Could not reach the voice service. Please try again shortly.', 502, {
-      code: 'VOICE_UPSTREAM_UNREACHABLE',
-    });
+    throw new AppError(
+      'Could not reach ElevenLabs voice service (request timed out). The upstream service may be degraded or experiencing high latency.',
+      502,
+      { code: 'VOICE_UPSTREAM_UNREACHABLE' },
+    );
   }
 
   if (!response.ok) {
     const body = await response.text().catch(() => '');
     logger.error({ status: response.status, body }, 'ElevenLabs rejected the signed-url request.');
+    throw new AppError(
+      `ElevenLabs upstream voice service returned an error (HTTP ${response.status}). Please check status.elevenlabs.io or try again shortly.`,
+      502,
+      { code: 'VOICE_UPSTREAM_ERROR', upstreamStatus: response.status },
+    );
+  }
+
+  const payload = await response.json().catch(() => null);
+  const signedUrl = payload?.signed_url;
+
+  if (typeof signedUrl !== 'string' || !signedUrl) {
+    logger.error('ElevenLabs answered the signed-url request without a signed_url.');
     throw new AppError('The voice service could not start a session.', 502, {
       code: 'VOICE_UPSTREAM_ERROR',
     });
   }
-
-  const { signed_url: signedUrl } = await response.json();
 
   const assistantName = actor.uiPreferences?.voiceAssistant?.assistantName || DEFAULT_ASSISTANT_NAME;
 

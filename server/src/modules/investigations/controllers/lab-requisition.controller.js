@@ -108,3 +108,16 @@ export const cancelLabRequisitionController = async (req, res, next) => {
     return next(error);
   }
 };
+
+export const listReferringDoctorsController = async (req, res, next) => {
+  try {
+    const doctors = await labRequisitionService.listReferringDoctors();
+    return sendSuccess(res, {
+      message:   'Referring doctors retrieved successfully.',
+      data:      doctors,
+      requestId: req.requestId,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};

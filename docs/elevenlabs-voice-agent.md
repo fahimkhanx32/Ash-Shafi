@@ -588,3 +588,46 @@ worth knowing given cancellation is a step more consequential than a
 discount. Everything else listed as open in checkpoint 16/17 is unchanged:
 no client test runner, no end-to-end tests, cross-instance idempotency,
 the `auth_token` question, and the ElevenLabs privacy/BAA review.
+
+## 14. Checkpoint 19 — End-to-End Voice Assistant Fix & Production Certification (2026-10-13)
+
+### 1. Dual Tool Execution Architecture (Client Tools + Webhook Redundancy)
+- In addition to the server-side webhook route (`POST /api/v1/voice/tools/:toolName`), all 36 clinical, navigation, and UI tools are registered as **Client Tools** in ElevenLabs Conversational AI Cloud and mounted inside `client/web/src/providers/VoiceAgentProvider.jsx` via `@elevenlabs/react`'s `useConversationClientTool`.
+- When the ElevenLabs agent invokes a tool, the browser executes it by forwarding the call directly to `apiClient.post('/voice/tools/:toolName', args)` with the doctor's authenticated session JWT.
+- **Benefits**:
+  - Works seamlessly on `localhost`, private hospital intranets, and edge deployments without requiring reverse proxies or public ingress tunnels (e.g., ngrok).
+  - Enforces identical server-side RBAC, Joi parameter validation, MongoDB mutations, and audit logging.
+  - Server webhook endpoint is preserved simultaneously for cloud-to-cloud server tool integrations.
+
+### 2. Disambiguation vs. Confirmation Fix
+- In `patient.tools.js`, `medicine.tools.js`, and `investigation.tools.js`, search results with multiple matches previously returned `requiresConfirmation: results.length > 1`.
+- This erroneously triggered the HIGH-risk confirmation modal in `VoiceAgentProvider` on read searches.
+- Fixed to return `disambiguationNeeded: true` and `requiresConfirmation: false`. Only genuinely destructive actions (`finalize_prescription`, `cancel_prescription`, `refund_payment`, `cancel_appointment`, `issue_lab_requisition`) require formal confirmation.
+
+### 3. Medical Normalization in Voice Validation
+- Added flexible medical normalization directly into `server/src/modules/voice/validators/voice.validation.js`:
+  - **Dosage & Frequency**: Translates standard dictation patterns (e.g., `"1+0+1"`, `"1-0-1"`, `"1 + 0 + 1"`, `"twice daily"`, `"bid"`, `"tid"`) into the EMR's standard frequency tokens (`"1 + 0 + 1"`, `"TWICE_DAILY"`, `"THREE_TIMES_DAILY"`).
+  - **Food Instruction**: Normalizes colloquial voice inputs (e.g., `"after meal"`, `"খাবার পর"`, `"before food"`) into standard canonical formats (`"After Meal"`, `"খাবার পরে"`).
+  - **Duration Unit**: Capitalizes `"days"` → `"Days"`, `"weeks"` → `"Weeks"`, `"months"` → `"Months"`.
+  - **Clinical Notes**: Translates snake_case keys (e.g., `"chief_complaint"`, `"past_history"`) into schema camelCase (`"chiefComplaint"`, `"pastHistory"`).
+  - **Investigation Resolution**: Test codes match catalog prefixes and aliases (e.g., `"CBC"` accurately resolves `"CBC_ESR"`).
+
+### 4. Real-time Prescription Workspace Synchronization
+- In `VoiceAgentProvider.jsx`, when any prescription-modifying tool succeeds, a custom DOM event `prescription:updated` is dispatched with tool metadata.
+- In `PrescriptionWorkspacePage.jsx`:
+  - `loadData` was updated with a `{ silent = false }` option to refresh state without unmounting the UI or showing jarring full-screen loading spinners.
+  - An event listener on `prescription:updated` triggers `loadData({ silent: true })`, instantly updating medicines, vitals, clinical notes, diagnosis, investigations, advice, and follow-up in the active prescription pad as the doctor speaks.
+  - Context auto-injection: If `prescriptionId` or `patientProfileId` is omitted during voice dictation, the workspace router context (`contextRef.current`) seamlessly populates the active prescription and patient ID.
+  - If a doctor starts dictating on a new prescription page (`/dashboard/patients/:id/prescriptions/new`), the provider automatically generates a draft prescription first before attaching medicines or clinical notes.
+
+### 5. ElevenLabs Cloud Agent Setup
+- Registered 36 client tools via ElevenLabs Conversational AI REST API (`/v1/convai/tools`).
+- Linked tools to Agent `agent_8601m3p38wejex1rtxp8s65jbmsc`.
+- Configured dynamic variables:
+  - `assistant_name`, `current_user_role`, `auth_token`, `current_page`, `current_workspace`, `current_patient_id`, `current_prescription_id`, `current_language`.
+- Updated agent system prompt with comprehensive bilingual medical rules (Bengali & English), dosage prompting, clinical note routing, and strict confirmation gating.
+
+### 6. Test Suite and Build Verification
+- **Server Test Suite**: All 10 test suites passed (134 passed, 0 failed), including the end-to-end 10-step dictation workflow test in `src/modules/voice/__tests__/voice-dictation-workflow.test.js`.
+- **Client Web Build**: Vite production build succeeded cleanly with 0 errors (`npm run build` in `client/web`).
+- **Website Build**: Next.js production build succeeded cleanly with 0 errors (`npm run build` in `client/website`).

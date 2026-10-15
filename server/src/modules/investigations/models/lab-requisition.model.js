@@ -81,6 +81,9 @@ const labRequisitionSchema = new mongoose.Schema(
       bloodGroup:  { type: String, default: '' },
       address:     { type: String, default: '' },
     },
+    // The doctor this requisition is "Referred by" — chosen from a dropdown
+    // (defaults to the ordering doctor). doctorSnapshot below is built from them.
+    referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     doctorSnapshot: {
       name:           { type: String, default: '' },
       qualifications: { type: String, default: '' },

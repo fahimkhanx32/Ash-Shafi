@@ -76,6 +76,15 @@ export const LegalPrescriptionDocument = forwardRef(function LegalPrescriptionDo
   if (!prescription) return null;
 
   const docSnapshot = prescription.doctorSnapshot || {};
+  const chamberFooter =
+    docSnapshot.chamberInfo ||
+    [
+      docSnapshot.visitingHours ? `রোগী দেখার সময় : ${docSnapshot.visitingHours}` : '',
+      docSnapshot.phone ? `Phone : ${docSnapshot.phone}` : '',
+      docSnapshot.email ? `E-mail : ${docSnapshot.email}` : '',
+    ]
+      .filter(Boolean)
+      .join(' | ');
   const patSnapshot = prescription.patientSnapshot || {};
   const vitals = prescription.vitals || {};
   const items = prescription.items || [];
@@ -149,44 +158,44 @@ export const LegalPrescriptionDocument = forwardRef(function LegalPrescriptionDo
               {/* Left Header: Bengali Doctor Profile */}
               <div className="text-left space-y-0.5">
                 <h1 className="text-[15px] font-bold text-slate-950 tracking-tight font-sans">
-                  {docSnapshot.nameBangla || 'প্রফেসর ডা. রেজওয়ানুর রহমান'}
+                  {docSnapshot.nameBangla || docSnapshot.name || ''}
                 </h1>
                 <p className="text-[10px] text-slate-800 font-medium">
-                  {docSnapshot.degreesBangla || 'এমবিবিএস, এমডি (নেফ্রোলজি), এফআরসিপি (এডিন)'}
+                  {docSnapshot.degreesBangla || docSnapshot.degreesEnglish || ''}
                 </p>
                 <p className="text-[9.5px] text-slate-700">
-                  {docSnapshot.designationBangla || 'অধ্যাপক ও বিভাগীয় প্রধান'}
+                  {docSnapshot.designationBangla || docSnapshot.designationEnglish || ''}
                 </p>
                 <p className="text-[9.5px] text-slate-700">
-                  {docSnapshot.departmentBangla || 'কিডনী রোগ ও ডায়ালাইসিস বিভাগ'}
+                  {docSnapshot.departmentBangla || docSnapshot.departmentEnglish || ''}
                 </p>
                 <p className="text-[9.5px] text-slate-700">
-                  {docSnapshot.hospitalBangla || 'বাংলাদেশ মেডিকেল কলেজ হাসপাতাল, ঢাকা'}
+                  {docSnapshot.hospitalBangla || docSnapshot.hospitalEnglish || ''}
                 </p>
                 <p className="text-[10px] font-bold text-[#1e6b52]">
-                  {docSnapshot.specialtyBangla || 'কিডনী রোগ ও কিডনি প্রতিস্থাপন বিশেষজ্ঞ'}
+                  {docSnapshot.specialtyBangla || docSnapshot.specialtyEnglish || ''}
                 </p>
               </div>
 
               {/* Right Header: English Doctor Profile */}
               <div className="text-right space-y-0.5">
                 <h1 className="text-[15px] font-bold text-slate-950 tracking-tight">
-                  {docSnapshot.name || 'Dr. Miran'}
+                  {docSnapshot.name || ''}
                 </h1>
                 <p className="text-[10px] text-slate-800 font-medium">
-                  {docSnapshot.degreesEnglish || 'MBBS, MD (Nephrology), FRCP (Edin)'}
+                  {docSnapshot.degreesEnglish || ''}
                 </p>
                 <p className="text-[9.5px] text-slate-700">
-                  {docSnapshot.designationEnglish || 'Professor & Head'}
+                  {docSnapshot.designationEnglish || ''}
                 </p>
                 <p className="text-[9.5px] text-slate-700">
-                  {docSnapshot.departmentEnglish || 'Department of Nephrology'}
+                  {docSnapshot.departmentEnglish || ''}
                 </p>
                 <p className="text-[9.5px] text-slate-700">
-                  {docSnapshot.hospitalEnglish || 'Bangladesh Medical College Hospital, Dhaka'}
+                  {docSnapshot.hospitalEnglish || ''}
                 </p>
                 <p className="text-[10px] font-bold text-[#1e6b52]">
-                  {docSnapshot.specialtyEnglish || 'Kidney Disease and Transplant Specialist'}
+                  {docSnapshot.specialtyEnglish || ''}
                 </p>
               </div>
             </div>
@@ -652,10 +661,10 @@ export const LegalPrescriptionDocument = forwardRef(function LegalPrescriptionDo
                   <div className="text-center w-48">
                     <div className="border-t border-slate-900 pt-1">
                       <p className="font-bold text-[10.5px] text-slate-950">
-                        {docSnapshot.name || 'Dr. Miran'}
+                        {docSnapshot.name || ''}
                       </p>
                       <p className="text-[8px] text-slate-600">
-                        {docSnapshot.specialtyEnglish || 'Kidney Disease and Transplant Specialist'}
+                        {docSnapshot.specialtyEnglish || ''}
                       </p>
                     </div>
                   </div>
@@ -667,8 +676,7 @@ export const LegalPrescriptionDocument = forwardRef(function LegalPrescriptionDo
           {/* 4. CHAMBER FOOTER */}
           <div className="border-t border-slate-400 pt-1.5 mt-2 text-center text-[8px] text-slate-700 leading-snug">
             <p>
-              {docSnapshot.chamberInfo ||
-                'চেম্বার : পপুলার কনসালটেশন সেন্টার (ভবন-৬), রুম নং-৩০৬ (লেভেল-৩), বাড়ী-২, রোড-২, ধানমন্ডি, ঢাকা | রোগী দেখার সময় : শনি থেকে বৃহস্পতিবার বিকাল ৪টা থেকে রাত ১০টা, শুক্রবার বন্ধ E-mail : kidneydial@gmail.com'}
+              {chamberFooter}
             </p>
           </div>
         </div>

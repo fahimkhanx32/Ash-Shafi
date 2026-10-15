@@ -111,55 +111,66 @@ const buildPatientSnapshot = async (patientProfile, customSnapshot = {}) => {
  * Builds doctor credentials and chamber snapshot at prescribing time.
  */
 const buildDoctorSnapshot = async (providerId, customSnapshot = {}) => {
-  const defaultHeader = {
-    name: 'Dr. Rezwanur Rahman',
-    nameBangla: 'প্রফেসর ডা. রেজওয়ানুর রহমান',
-    degreesEnglish: 'MBBS, MD (Nephrology), FRCP (Edin)',
-    degreesBangla: 'এমবিবিএস, এমডি (নেফ্রোলজি), এফআরসিপি (এডিন)',
-    designationEnglish: 'Professor & Head',
-    designationBangla: 'অধ্যাপক ও বিভাগীয় প্রধান',
-    departmentEnglish: 'Department of Nephrology',
-    departmentBangla: 'কিডনী রোগ ও ডায়ালাইসিস বিভাগ',
-    hospitalEnglish: 'Bangladesh Medical College Hospital, Dhaka',
-    hospitalBangla: 'বাংলাদেশ মেডিকেল কলেজ হাসপাতাল, ঢাকা',
-    specialtyEnglish: 'Kidney Disease and Transplant Specialist',
-    specialtyBangla: 'কিডনী রোগ ও কিডনি প্রতিস্থাপন বিশেষজ্ঞ',
-    chamberInfo: 'চেম্বার : পপুলার কনসালটেশন সেন্টার (ভবন-৬), রুম নং-৩০৬ (লেভেল-৩), বাড়ী-২, রোড-২, ধানমন্ডি, ঢাকা | রোগী দেখার সময় : শনি থেকে বৃহস্পতিবার বিকাল ৪টা থেকে রাত ১০টা, শুক্রবার বন্ধ E-mail : kidneydial@gmail.com',
-    visitingHours: 'শনি থেকে বৃহস্পতিবার বিকাল ৪টা থেকে রাত ১০টা, শুক্রবার বন্ধ',
-    email: 'kidneydial@gmail.com',
-    phone: '০১৭২২৯১৩০৩৬, ০১৬৬৬ ৭৮৭৮০১',
+  // No hardcoded doctor: every line comes from the prescribing doctor's own
+  // account/staff profile (My Profile). Anything missing stays blank and is
+  // left off the letterhead rather than being filled with someone else's data.
+  const blank = {
+    name: '',
+    nameBangla: '',
+    degreesEnglish: '',
+    degreesBangla: '',
+    designationEnglish: '',
+    designationBangla: '',
+    departmentEnglish: '',
+    departmentBangla: '',
+    hospitalEnglish: '',
+    hospitalBangla: '',
+    specialtyEnglish: '',
+    specialtyBangla: '',
+    registrationNumber: '',
+    chamberInfo: '',
+    visitingHours: '',
+    email: '',
+    phone: '',
+    signatureUrl: '',
   };
 
-  if (!providerId) return { ...defaultHeader, ...customSnapshot };
+  if (!providerId) return { ...blank, ...customSnapshot };
 
   const [staff, user] = await Promise.all([
     StaffProfile.findOne({ user: providerId }),
     User.findById(providerId),
   ]);
 
-  if (!staff && !user) return { ...defaultHeader, ...customSnapshot };
+  if (!staff && !user) return { ...blank, ...customSnapshot };
 
-  const doctorDetails = staff?.doctorDetails || {};
+  const dd = staff?.doctorDetails || {};
+  const pick = (custom, ...fallbacks) => custom || fallbacks.find(Boolean) || '';
+  const accountName = (user?.name || '').trim();
+  const titledName =
+    accountName && user?.role === 'DOCTOR' && !/^(dr\.?|prof\.?|professor)\b/i.test(accountName)
+      ? `Dr. ${accountName}`
+      : accountName;
 
   return {
-    name: customSnapshot.name || user?.name || defaultHeader.name,
-    nameBangla: customSnapshot.nameBangla || doctorDetails.nameBangla || defaultHeader.nameBangla,
-    degreesEnglish: customSnapshot.degreesEnglish || doctorDetails.qualifications?.join(', ') || defaultHeader.degreesEnglish,
-    degreesBangla: customSnapshot.degreesBangla || doctorDetails.degreesBangla || defaultHeader.degreesBangla,
-    designationEnglish: customSnapshot.designationEnglish || staff?.designation || defaultHeader.designationEnglish,
-    designationBangla: customSnapshot.designationBangla || doctorDetails.designationBangla || defaultHeader.designationBangla,
-    departmentEnglish: customSnapshot.departmentEnglish || staff?.department || defaultHeader.departmentEnglish,
-    departmentBangla: customSnapshot.departmentBangla || doctorDetails.departmentBangla || defaultHeader.departmentBangla,
-    hospitalEnglish: customSnapshot.hospitalEnglish || defaultHeader.hospitalEnglish,
-    hospitalBangla: customSnapshot.hospitalBangla || defaultHeader.hospitalBangla,
-    specialtyEnglish: customSnapshot.specialtyEnglish || doctorDetails.specialization || defaultHeader.specialtyEnglish,
-    specialtyBangla: customSnapshot.specialtyBangla || doctorDetails.specialtyBangla || defaultHeader.specialtyBangla,
-    registrationNumber: customSnapshot.registrationNumber || doctorDetails.registrationNumber || '',
-    chamberInfo: customSnapshot.chamberInfo || defaultHeader.chamberInfo,
-    visitingHours: customSnapshot.visitingHours || defaultHeader.visitingHours,
-    email: customSnapshot.email || user?.email || defaultHeader.email,
-    phone: customSnapshot.phone || staff?.phone || defaultHeader.phone,
-    signatureUrl: customSnapshot.signatureUrl || '',
+    name: pick(customSnapshot.name, titledName),
+    nameBangla: pick(customSnapshot.nameBangla, dd.nameBangla),
+    degreesEnglish: pick(customSnapshot.degreesEnglish, dd.qualifications?.join(', ')),
+    degreesBangla: pick(customSnapshot.degreesBangla, dd.degreesBangla),
+    designationEnglish: pick(customSnapshot.designationEnglish, dd.designationEnglish),
+    designationBangla: pick(customSnapshot.designationBangla, dd.designationBangla),
+    departmentEnglish: pick(customSnapshot.departmentEnglish, dd.departmentEnglish, staff?.department),
+    departmentBangla: pick(customSnapshot.departmentBangla, dd.departmentBangla),
+    hospitalEnglish: pick(customSnapshot.hospitalEnglish, dd.hospitalEnglish),
+    hospitalBangla: pick(customSnapshot.hospitalBangla, dd.hospitalBangla),
+    specialtyEnglish: pick(customSnapshot.specialtyEnglish, dd.specialization),
+    specialtyBangla: pick(customSnapshot.specialtyBangla, dd.specialtyBangla),
+    registrationNumber: pick(customSnapshot.registrationNumber, dd.registrationNumber),
+    chamberInfo: pick(customSnapshot.chamberInfo, dd.chamberInfo),
+    visitingHours: pick(customSnapshot.visitingHours, dd.visitingHours),
+    email: pick(customSnapshot.email, user?.email),
+    phone: pick(customSnapshot.phone, staff?.phone),
+    signatureUrl: pick(customSnapshot.signatureUrl),
   };
 };
 
@@ -483,7 +494,7 @@ export const reviseFinalizedPrescription = async (id, updates, reason, actor) =>
     encounter: updates.encounter !== undefined ? updates.encounter : original.encounter,
     appointment: updates.appointment !== undefined ? updates.appointment : original.appointment,
 
-    prescriptionDate: new Date(),
+    prescriptionDate: updates.prescriptionDate ? new Date(updates.prescriptionDate) : new Date(),
     status: 'FINALIZED',
     finalizedAt: new Date(),
     finalizedBy: actor._id,
@@ -725,7 +736,7 @@ export const verifyPrescriptionByToken = async (token, actor = null) => {
       prescriptionId: prescription.prescriptionId,
       status: prescription.status,
       prescriptionDate: prescription.prescriptionDate,
-      doctorName: prescription.doctorSnapshot?.name || prescription.provider?.name || 'Dr. Rezwanur Rahman',
+      doctorName: prescription.doctorSnapshot?.name || prescription.provider?.name || '',
       patientName: prescription.patientSnapshot?.name || 'Authorized Patient',
       patientId: prescription.patientSnapshot?.patientId || prescription.patientProfile?.patientId || '—',
       isFinalized: prescription.status === 'FINALIZED',

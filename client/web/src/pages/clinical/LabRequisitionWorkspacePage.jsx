@@ -59,6 +59,7 @@ export default function LabRequisitionWorkspacePage() {
   const [patient, setPatient] = useState(null);
   const [requisition, setRequisition] = useState(null);
   const [error, setError] = useState('');
+  const [doctors, setDoctors] = useState([]);
 
   // Form State
   const [form, setForm] = useState({
@@ -72,6 +73,7 @@ export default function LabRequisitionWorkspacePage() {
     },
     clinicalDiagnosis: searchParams.get('diagnosis') || '',
     priority: 'ROUTINE',
+    referredByDoctorId: '',
     notes: '',
     tests: [],
     admissionDetails: {
@@ -135,6 +137,15 @@ export default function LabRequisitionWorkspacePage() {
         console.warn('Using default test catalog:', catErr);
       }
 
+      // 1b. Doctors for the "Referred by" dropdown (non-fatal if it fails)
+      let doctorList = [];
+      try {
+        doctorList = await labRequisitionsService.listReferringDoctors();
+        setDoctors(doctorList);
+      } catch (docErr) {
+        console.warn('Could not load referring doctors:', docErr);
+      }
+
       // 2. Fetch existing requisition if editing
       if (!isNew) {
         const reqDoc = await labRequisitionsService.getRequisition(requisitionId);
@@ -150,6 +161,7 @@ export default function LabRequisitionWorkspacePage() {
           },
           clinicalDiagnosis: reqDoc.clinicalDiagnosis || '',
           priority: reqDoc.priority || 'ROUTINE',
+          referredByDoctorId: reqDoc.referredBy ? String(reqDoc.referredBy?._id || reqDoc.referredBy?.id || reqDoc.referredBy) : '',
           notes: reqDoc.notes || '',
           tests: reqDoc.tests || [],
           admissionDetails: {
@@ -159,6 +171,14 @@ export default function LabRequisitionWorkspacePage() {
             payingStatus: reqDoc.admissionDetails?.payingStatus || '',
           },
         });
+      }
+
+      // New requisition: default "Referred by" to the logged-in doctor.
+      if (isNew && user?.role === 'DOCTOR') {
+        const me = String(user.id || user._id || '');
+        if (me && doctorList.some((d) => d.id === me)) {
+          setForm((prev) => (prev.referredByDoctorId ? prev : { ...prev, referredByDoctorId: me }));
+        }
       }
 
       // 3. Fetch patient profile if registered
@@ -184,7 +204,7 @@ export default function LabRequisitionWorkspacePage() {
     } finally {
       setLoading(false);
     }
-  }, [isNew, isWalkIn, patientProfileId, requisitionId]);
+  }, [isNew, isWalkIn, patientProfileId, requisitionId, user]);
 
   useEffect(() => {
     loadData();
@@ -248,15 +268,25 @@ export default function LabRequisitionWorkspacePage() {
         phone: form.walkIn.phone || patient?.phone || '—',
         bloodGroup: form.walkIn.bloodGroup || patient?.bloodGroup || '—',
       },
-      doctorSnapshot: {
-        name: user?.name || 'Prof. Dr. Rezwanur Rahman',
-        qualifications: 'MBBS, MD (Nephrology), FRCP (Edin)',
-        bmdc: '',
-        chamberAddress: 'Popular Consultation Centre (Bldg-6), Room 306, Dhanmondi, Dhaka',
-      },
+      // Saved requisitions show the snapshot taken at save time; while editing
+      // (or before the first save) the picked doctor is shown live.
+      doctorSnapshot: (() => {
+        if (isIssued && requisition?.doctorSnapshot) return requisition.doctorSnapshot;
+        const picked = doctors.find((d) => d.id === form.referredByDoctorId);
+        if (picked) {
+          return {
+            name: picked.name,
+            qualifications: picked.qualifications,
+            bmdc: picked.bmdc,
+            chamberAddress: picked.chamberAddress,
+            phone: picked.phone,
+          };
+        }
+        return requisition?.doctorSnapshot || {};
+      })(),
       admissionDetails: form.admissionDetails,
     };
-  }, [form, isWalkIn, patient, requisition, user]);
+  }, [form, isWalkIn, patient, requisition, doctors, isIssued]);
 
   // Save / Issue Actions
   const handleSave = async (issueImmediately = false) => {
@@ -279,6 +309,7 @@ export default function LabRequisitionWorkspacePage() {
           tests: form.tests,
           clinicalDiagnosis: form.clinicalDiagnosis,
           priority: form.priority,
+          referredByDoctorId: form.referredByDoctorId || undefined,
           notes: form.notes,
           admissionDetails: form.admissionDetails,
         };
@@ -294,6 +325,7 @@ export default function LabRequisitionWorkspacePage() {
           tests: form.tests,
           clinicalDiagnosis: form.clinicalDiagnosis,
           priority: form.priority,
+          referredByDoctorId: form.referredByDoctorId || undefined,
           notes: form.notes,
           admissionDetails: form.admissionDetails,
           walkIn: isWalkIn ? form.walkIn : undefined,
@@ -574,6 +606,27 @@ export default function LabRequisitionWorkspacePage() {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Referred by — the doctor printed on the requisition */}
+            <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-1">
+              <label htmlFor="req-referred-by" className="text-xs font-bold text-foreground">
+                Referred by (Dr./Prof.)
+              </label>
+              <select
+                id="req-referred-by"
+                value={form.referredByDoctorId}
+                onChange={(e) => setForm((prev) => ({ ...prev, referredByDoctorId: e.target.value }))}
+                disabled={!canWrite}
+                className="w-full h-8 px-2.5 text-xs rounded-lg border border-border bg-background"
+              >
+                <option value="">— Select doctor —</option>
+                {doctors.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}{d.specialization ? ` — ${d.specialization}` : ''}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Clinical Diagnosis & Priority */}

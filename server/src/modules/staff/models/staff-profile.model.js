@@ -149,6 +149,16 @@ const doctorDetailsSchema = new mongoose.Schema(
       maxlength: 200,
       default: '',
     },
+
+    // Letterhead details that used to be hardcoded on the prescription.
+    // Each doctor fills these in once (My Profile) and every prescription
+    // snapshots them. Blank = that line is simply left off the letterhead.
+    designationEnglish: { type: String, trim: true, maxlength: 150, default: '' },
+    departmentEnglish: { type: String, trim: true, maxlength: 150, default: '' },
+    hospitalEnglish: { type: String, trim: true, maxlength: 250, default: '' },
+    hospitalBangla: { type: String, trim: true, maxlength: 250, default: '' },
+    chamberInfo: { type: String, trim: true, maxlength: 500, default: '' },
+    visitingHours: { type: String, trim: true, maxlength: 300, default: '' },
   },
   { _id: false },
 );

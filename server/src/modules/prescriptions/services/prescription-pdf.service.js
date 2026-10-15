@@ -73,30 +73,41 @@ export const generatePrescriptionPdf = (prescription, res) =>
     // --- 1. HEADER (Bilingual Doctor Information) ---
     const headerTop = 36;
 
-    // Left Header (Doctor in Bengali / Primary title)
-    doc.fontSize(11).font(boldFont).fillColor('#000000');
-    doc.text(docSnapshot.nameBangla || docSnapshot.name || 'প্রফেসর ডা. রেজওয়ানুর রহমান', leftMargin, headerTop, { width: 260 });
-    doc.fontSize(8.5).font(regFont);
-    doc.text(docSnapshot.degreesBangla || docSnapshot.degreesEnglish || 'এমবিবিএস, এমডি (নেফ্রোলজি), এফআরসিপি (এডিন)', leftMargin, doc.y + 1, { width: 260 });
-    doc.text(docSnapshot.designationBangla || docSnapshot.designationEnglish || 'অধ্যাপক ও বিভাগীয় প্রধান', leftMargin, doc.y + 1, { width: 260 });
-    doc.text(docSnapshot.departmentBangla || docSnapshot.departmentEnglish || 'কিডনী রোগ ও ডায়ালাইসিস বিভাগ', leftMargin, doc.y + 1, { width: 260 });
-    doc.text(docSnapshot.hospitalBangla || docSnapshot.hospitalEnglish || 'বাংলাদেশ মেডিকেল কলেজ হাসপাতাল, ঢাকা', leftMargin, doc.y + 1, { width: 260 });
-    doc.text(docSnapshot.specialtyBangla || docSnapshot.specialtyEnglish || 'কিডনী রোগ ও কিডনি প্রতিস্থাপন বিশেষজ্ঞ', leftMargin, doc.y + 1, { width: 260 });
+    // Left Header (Bangla; each line falls back to its English counterpart
+    // and is skipped entirely when the doctor has not provided it)
+    const bnLines = [
+      docSnapshot.nameBangla || docSnapshot.name,
+      docSnapshot.degreesBangla || docSnapshot.degreesEnglish,
+      docSnapshot.designationBangla || docSnapshot.designationEnglish,
+      docSnapshot.departmentBangla || docSnapshot.departmentEnglish,
+      docSnapshot.hospitalBangla || docSnapshot.hospitalEnglish,
+      docSnapshot.specialtyBangla || docSnapshot.specialtyEnglish,
+    ].filter(Boolean);
+    let bnHeaderY = headerTop;
+    bnLines.forEach((line, i) => {
+      doc.fontSize(i === 0 ? 11 : 8.5).font(i === 0 ? boldFont : regFont).fillColor('#000000');
+      doc.text(line, leftMargin, bnHeaderY, { width: 260 });
+      bnHeaderY = doc.y + 1;
+    });
 
-    // Right Header (Doctor in English)
-    doc.fontSize(11).font(boldFont).fillColor('#000000');
-    doc.text(docSnapshot.name || 'Prof. Dr. Rezwanur Rahman', 315, headerTop, { width: 260, align: 'right' });
-    doc.fontSize(8.5).font(regFont);
-    doc.text(docSnapshot.degreesEnglish || 'MBBS, MD (Nephrology), FRCP (Edin)', 315, headerTop + 14, { width: 260, align: 'right' });
-    doc.text(docSnapshot.designationEnglish || 'Professor & Head', 315, headerTop + 26, { width: 260, align: 'right' });
-    doc.text(docSnapshot.departmentEnglish || 'Department of Nephrology', 315, headerTop + 38, { width: 260, align: 'right' });
-    doc.text(docSnapshot.hospitalEnglish || 'Bangladesh Medical College Hospital, Dhaka', 315, headerTop + 50, { width: 260, align: 'right' });
-    doc.text(docSnapshot.specialtyEnglish || 'Kidney Disease and Transplant Specialist', 315, headerTop + 62, { width: 260, align: 'right' });
-    if (docSnapshot.email) {
-      doc.text(`E-mail : ${docSnapshot.email}`, 315, headerTop + 74, { width: 260, align: 'right' });
-    }
+    // Right Header (English)
+    const enLines = [
+      docSnapshot.name,
+      docSnapshot.degreesEnglish,
+      docSnapshot.designationEnglish,
+      docSnapshot.departmentEnglish,
+      docSnapshot.hospitalEnglish,
+      docSnapshot.specialtyEnglish,
+      docSnapshot.email ? `E-mail : ${docSnapshot.email}` : '',
+    ].filter(Boolean);
+    let rightHeaderY = headerTop;
+    enLines.forEach((line, i) => {
+      doc.fontSize(i === 0 ? 11 : 8.5).font(i === 0 ? boldFont : regFont).fillColor('#000000');
+      doc.text(line, 315, rightHeaderY, { width: 260, align: 'right' });
+      rightHeaderY = doc.y + 1;
+    });
 
-    const afterHeaderY = Math.max(doc.y, headerTop + 88);
+    const afterHeaderY = Math.max(bnHeaderY, rightHeaderY, headerTop + 40);
 
     // --- 2. PATIENT METADATA BAR ---
     doc.moveTo(leftMargin, afterHeaderY).lineTo(rightMargin, afterHeaderY).strokeColor('#888888').lineWidth(0.75).stroke();
@@ -369,11 +380,11 @@ export const generatePrescriptionPdf = (prescription, res) =>
     // Doctor Signature Line (Bottom Right)
     const sigY = 885;
     doc.moveTo(390, sigY).lineTo(rightMargin, sigY).strokeColor('#000000').lineWidth(0.75).stroke();
-    doc.fontSize(9.5).font(boldFont).fillColor('#000000').text(docSnapshot.name || `Dr. ${provider.name || 'Rezwanur Rahman'}`, 390, sigY + 4, {
+    doc.fontSize(9.5).font(boldFont).fillColor('#000000').text(docSnapshot.name || provider.name || '', 390, sigY + 4, {
       width: rightMargin - 390,
       align: 'center',
     });
-    doc.fontSize(8).font(regFont).fillColor('#555555').text(docSnapshot.specialtyEnglish || 'Kidney Disease and Transplant Specialist', 390, sigY + 16, {
+    doc.fontSize(8).font(regFont).fillColor('#555555').text(docSnapshot.specialtyEnglish || '', 390, sigY + 16, {
       width: rightMargin - 390,
       align: 'center',
     });
@@ -394,7 +405,13 @@ export const generatePrescriptionPdf = (prescription, res) =>
     doc.fontSize(7.5).font(regFont).fillColor('#333333');
     const chamberLine =
       docSnapshot.chamberInfo ||
-      'চেম্বার : পপুলার কনসালটেশন সেন্টার (ভবন-৬), রুম নং-৩০৬ (লেভেল-৩), বাড়ী-২, রোড-২, ধানমন্ডি, ঢাকা | রোগী দেখার সময় : শনি থেকে বৃহস্পতিবার বিকাল ৪টা থেকে রাত ১০টা, শুক্রবার বন্ধ E-mail : kidneydial@gmail.com';
+      [
+        docSnapshot.visitingHours ? `রোগী দেখার সময় : ${docSnapshot.visitingHours}` : '',
+        docSnapshot.phone ? `Phone : ${docSnapshot.phone}` : '',
+        docSnapshot.email ? `E-mail : ${docSnapshot.email}` : '',
+      ]
+        .filter(Boolean)
+        .join(' | ');
 
     doc.text(chamberLine, leftMargin, footerY + 5, {
       width: pageWidth,

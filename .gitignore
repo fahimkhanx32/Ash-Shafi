@@ -28,7 +28,9 @@ client/web/.env.*
 # ------------------------------------------------------------
 dist/
 build/
+.next/
 client/web/dist/
+client/website/.next/
 server/dist/
 *.tsbuildinfo
 

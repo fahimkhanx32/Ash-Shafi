@@ -37,31 +37,82 @@ const generateRequisitionReference = async () => {
 
 // ── Snapshot builders (mirrors prescription.service.js) ─────────────────────
 
-const DEFAULT_DOCTOR = {
-  name:           'Dr. Rezwanur Rahman',
-  qualifications: 'MBBS, MD (Nephrology), FRCP (Edin)',
-  bmdc:           '',
-  chamberAddress: 'Popular Consultation Centre (Bldg-6), Room 306, Dhanmondi, Dhaka',
-  phone:          '01722913036',
-  email:          'kidneydial@gmail.com',
+const titledDoctorName = (name, role) => {
+  const n = (name || '').trim();
+  if (!n) return '';
+  return role === ROLES.DOCTOR && !/^(dr\.?|prof\.?|professor)\b/i.test(n) ? `Dr. ${n}` : n;
 };
 
-const buildDoctorSnapshot = async (actorId) => {
-  if (!actorId) return DEFAULT_DOCTOR;
+// Everything shown for the "Referred by" doctor comes from that doctor's own
+// account / staff profile — nothing is hardcoded.
+const buildDoctorSnapshot = async (doctorUserId) => {
+  const empty = { name: '', qualifications: '', bmdc: '', chamberAddress: '', phone: '', email: '' };
+  if (!doctorUserId) return empty;
   const [staff, user] = await Promise.all([
-    StaffProfile.findOne({ user: actorId }).lean(),
-    User.findById(actorId).lean(),
+    StaffProfile.findOne({ user: doctorUserId }).lean(),
+    User.findById(doctorUserId).lean(),
   ]);
-  if (!staff && !user) return DEFAULT_DOCTOR;
+  if (!staff && !user) return empty;
   const dd = staff?.doctorDetails || {};
   return {
-    name:           user?.name || DEFAULT_DOCTOR.name,
-    qualifications: dd.qualifications?.join(', ') || DEFAULT_DOCTOR.qualifications,
+    name:           titledDoctorName(user?.name, user?.role),
+    qualifications: dd.qualifications?.join(', ') || '',
     bmdc:           dd.registrationNumber || '',
-    chamberAddress: DEFAULT_DOCTOR.chamberAddress,
-    phone:          staff?.phone || DEFAULT_DOCTOR.phone,
-    email:          user?.email  || DEFAULT_DOCTOR.email,
+    chamberAddress: dd.chamberInfo || '',
+    phone:          staff?.phone || '',
+    email:          user?.email || '',
   };
+};
+
+/**
+ * Resolve who the requisition is "Referred by". An explicit id must be an
+ * active doctor account; with no id it defaults to the ordering user when they
+ * are a doctor (and to nobody otherwise, rather than guessing).
+ */
+const resolveReferringDoctorId = async (referredByDoctorId, actor) => {
+  if (referredByDoctorId) {
+    if (!isValidObjectId(referredByDoctorId)) {
+      throw new AppError('Invalid referring doctor id.', 400, { code: 'INVALID_ID' });
+    }
+    const doctor = await User.findOne({
+      _id: referredByDoctorId,
+      role: ROLES.DOCTOR,
+      status: 'ACTIVE',
+      isDeleted: { $ne: true },
+    }).select('_id').lean();
+    if (!doctor) {
+      throw new AppError('Referring doctor not found.', 404, { code: 'DOCTOR_NOT_FOUND' });
+    }
+    return doctor._id;
+  }
+  return actor?.role === ROLES.DOCTOR ? actor._id : null;
+};
+
+/** Doctors that can be picked in the "Referred by" dropdown. */
+export const listReferringDoctors = async () => {
+  const users = await User.find({
+    role: ROLES.DOCTOR,
+    status: 'ACTIVE',
+    isDeleted: { $ne: true },
+  })
+    .select('name role')
+    .sort({ name: 1 })
+    .lean();
+  const profiles = await StaffProfile.find({ user: { $in: users.map((u) => u._id) } }).lean();
+  const byUser = new Map(profiles.map((p) => [String(p.user), p]));
+  return users.map((u) => {
+    const staff = byUser.get(String(u._id));
+    const dd = staff?.doctorDetails || {};
+    return {
+      id: String(u._id),
+      name: titledDoctorName(u.name, u.role),
+      qualifications: dd.qualifications?.join(', ') || '',
+      bmdc: dd.registrationNumber || '',
+      chamberAddress: dd.chamberInfo || '',
+      phone: staff?.phone || '',
+      specialization: dd.specialization || '',
+    };
+  });
 };
 
 const buildPatientSnapshot = (profile) => {
@@ -147,7 +198,7 @@ const findRequisitionOrThrow = async (id) => {
  * Accepts either patientProfileId (registered) or walkIn data (unregistered).
  */
 export const createRequisition = async (body, actor) => {
-  const { patientProfileId, walkIn, tests, clinicalDiagnosis, priority, notes, admissionDetails, encounterId, prescriptionId } = body;
+  const { patientProfileId, walkIn, tests, clinicalDiagnosis, priority, notes, admissionDetails, encounterId, prescriptionId, referredByDoctorId } = body;
 
   let patientProfile;
 
@@ -179,9 +230,10 @@ export const createRequisition = async (body, actor) => {
 
   const totalCostBDT = enrichedTests.reduce((sum, t) => sum + (t.costBDT || 0), 0);
 
+  const referringDoctorId = await resolveReferringDoctorId(referredByDoctorId, actor);
   const [requisitionReference, doctorSnapshot] = await Promise.all([
     generateRequisitionReference(),
-    buildDoctorSnapshot(actor._id),
+    buildDoctorSnapshot(referringDoctorId),
   ]);
 
   const patientSnapshot = buildPatientSnapshot(patientProfile);
@@ -194,6 +246,7 @@ export const createRequisition = async (body, actor) => {
     patientProfile:    patientProfile._id,
     patient:           patientProfile.user,
     orderedBy:         actor._id,
+    referredBy:        referringDoctorId,
     encounter:         (encounterId   && isValidObjectId(encounterId))   ? encounterId   : null,
     prescription:      (prescriptionId && isValidObjectId(prescriptionId)) ? prescriptionId : null,
     tests:             enrichedTests,
@@ -239,7 +292,13 @@ export const updateRequisition = async (id, body, actor) => {
     throw new AppError(`Cannot edit a requisition with status ${req.status}.`, 400, { code: 'INVALID_STATUS' });
   }
 
-  const { tests, clinicalDiagnosis, priority, notes, admissionDetails, walkIn } = body;
+  const { tests, clinicalDiagnosis, priority, notes, admissionDetails, walkIn, referredByDoctorId } = body;
+
+  if (referredByDoctorId) {
+    const referringDoctorId = await resolveReferringDoctorId(referredByDoctorId, actor);
+    req.referredBy = referringDoctorId;
+    req.doctorSnapshot = await buildDoctorSnapshot(referringDoctorId);
+  }
 
   if (Array.isArray(tests)) {
     if (tests.length === 0) {

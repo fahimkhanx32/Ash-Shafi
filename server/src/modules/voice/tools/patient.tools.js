@@ -38,7 +38,7 @@ export const searchPatient = async ({ query, limit = 5 }, actor) => {
       results.length === 1
         ? `Found ${results[0].name}.`
         : `Found ${results.length} matching patients — which one did you mean?`,
-    requiresConfirmation: results.length > 1,
+    disambiguationNeeded: results.length > 1,
     results,
   };
 };

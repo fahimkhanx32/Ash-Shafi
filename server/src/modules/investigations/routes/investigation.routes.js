@@ -14,6 +14,7 @@ import {
 import {
   getTestCatalogController,
   createLabRequisitionController,
+  listReferringDoctorsController,
   updateLabRequisitionController,
   getLabRequisitionController,
   listLabRequisitionsController,
@@ -110,6 +111,13 @@ labRequisitionRouter.use(authenticate);
 
 // Catalog — accessible by any authenticated user
 labRequisitionRouter.get('/catalog', getTestCatalogController);
+
+// Doctors selectable in the "Referred by" dropdown (declared before `/:id`).
+labRequisitionRouter.get(
+  '/referring-doctors',
+  authorize(PERMISSIONS.INVESTIGATIONS_WRITE),
+  listReferringDoctorsController,
+);
 
 // Patient self-access
 labRequisitionRouter.get(

@@ -33,6 +33,7 @@ export const createLabRequisitionSchema = Joi.object({
     .required()
     .messages({ 'array.min': 'At least one test must be selected.' }),
 
+  referredByDoctorId: mongoId.allow(null, '').optional(),
   clinicalDiagnosis: Joi.string().trim().max(500).allow('').optional(),
   priority:          Joi.string().valid(...LAB_REQUISITION_PRIORITIES).optional(),
   notes:             Joi.string().trim().max(1000).allow('').optional(),
@@ -69,6 +70,7 @@ export const updateLabRequisitionSchema = Joi.object({
     .min(1)
     .optional(),
 
+  referredByDoctorId: mongoId.allow(null, '').optional(),
   clinicalDiagnosis: Joi.string().trim().max(500).allow('').optional(),
   priority:          Joi.string().valid(...LAB_REQUISITION_PRIORITIES).optional(),
   notes:             Joi.string().trim().max(1000).allow('').optional(),

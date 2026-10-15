@@ -52,7 +52,7 @@ export const searchInvestigation = ({ query, limit = 5 }) => {
       results.length === 1
         ? `Found ${results[0].name} (${results[0].costBDT} BDT).`
         : `Found ${results.length} tests matching "${query}" — which one did you mean?`,
-    requiresConfirmation: results.length > 1,
+    disambiguationNeeded: results.length > 1,
     results,
   };
 };

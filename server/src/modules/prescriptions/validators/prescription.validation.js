@@ -180,7 +180,8 @@ const patientSnapshotSchema = Joi.object({
 const commonFieldsSchema = {
   encounter: mongoIdSchema.allow(null),
   appointment: mongoIdSchema.allow(null),
-  prescriptionDate: Joi.date().iso(),
+  // Back-dating is allowed (e.g. entering an old paper prescription); future dates are not.
+  prescriptionDate: Joi.date().iso().max('now'),
 
   chiefComplaint: Joi.string().trim().max(2000).allow(''),
   coMorbidities: Joi.string().trim().max(2000).allow(''),

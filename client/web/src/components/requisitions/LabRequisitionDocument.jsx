@@ -244,7 +244,7 @@ export const LabRequisitionDocument = forwardRef(function LabRequisitionDocument
             <div className="flex-1 flex items-baseline">
               <span className="whitespace-nowrap font-normal">Refd. by Dr./Prof.</span>
               <span className="font-medium px-1 text-black">
-                {docSnapshot.name || 'Prof. Dr. Rezwanur Rahman'}
+                {docSnapshot.name || ''}
               </span>
               <span className="flex-1 border-b border-dotted border-black min-w-[40px]" />
             </div>

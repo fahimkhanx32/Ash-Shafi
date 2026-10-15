@@ -122,6 +122,8 @@ export default function SettingsPage() {
   const [imageError, setImageError] = useState('');
   const [savingImage, setSavingImage] = useState(false);
   const fileInputRef = useRef(null);
+  // Shown the moment a file is chosen, before the upload round-trip finishes.
+  const [pendingImage, setPendingImage] = useState(null);
 
   const emailChanged = emailDraft.trim().toLowerCase() !== (user?.email || '');
 
@@ -177,9 +179,13 @@ export default function SettingsPage() {
     e.target.value = '';
     if (!file) return;
     try {
-      await saveImage(await resizeImageToDataUrl(file));
+      const dataUrl = await resizeImageToDataUrl(file);
+      setPendingImage(dataUrl); // instant preview
+      await saveImage(dataUrl);
     } catch (err) {
       setImageError(err.message);
+    } finally {
+      setPendingImage(null);
     }
   };
 
@@ -375,8 +381,8 @@ export default function SettingsPage() {
                   aria-label={t('settings.account.imageUpload', 'Upload image')}
                   className="relative h-28 w-28 overflow-hidden rounded-full border-2 border-primary/50 bg-primary/10 text-primary grid place-items-center disabled:opacity-60"
                 >
-                  {user?.profileImage ? (
-                    <img src={user.profileImage} alt="" className="h-full w-full object-cover" />
+                  {pendingImage || user?.profileImage ? (
+                    <img src={pendingImage || user.profileImage} alt={t('settings.account.imagePreview', 'Profile picture preview')} className="h-full w-full object-cover" />
                   ) : (
                     <UserRound size={56} aria-hidden="true" />
                   )}

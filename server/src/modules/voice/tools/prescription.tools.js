@@ -175,7 +175,15 @@ export const removeMedicineFromPrescriptionTool = async ({ prescriptionId, itemI
  * price can never end up on the prescription.
  */
 export const addInvestigationToPrescriptionTool = async ({ prescriptionId, testCode, notes = '' }, actor) => {
-  const catalogEntry = TEST_CATALOG.find((t) => t.code === testCode);
+  const target = String(testCode || '').trim();
+  const catalogEntry = TEST_CATALOG.find(
+    (t) =>
+      t.code === target ||
+      t.code.toLowerCase() === target.toLowerCase() ||
+      t.code.replace(/_/g, ' ').toLowerCase() === target.toLowerCase() ||
+      t.name.toLowerCase() === target.toLowerCase() ||
+      t.name.toLowerCase().startsWith(target.toLowerCase()),
+  );
   if (!catalogEntry) {
     throw new AppError('That test was not found in the catalog.', 404, { code: 'TEST_NOT_FOUND' });
   }

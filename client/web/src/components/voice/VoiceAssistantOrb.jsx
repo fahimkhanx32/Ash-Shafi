@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Mic, MicOff, Loader2, X } from 'lucide-react';
+import { Mic, MicOff, Loader2, X, RefreshCw, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { useVoiceAgent } from '../../providers/VoiceAgentProvider.jsx';
+import voiceAssistantIcon from '../../assets/voice-assistant.svg';
 
 /**
  * FET-16 — mounted once in `AppShell.jsx` for roles in
@@ -22,6 +23,7 @@ export default function VoiceAssistantOrb() {
     isMuted,
     setMuted,
     connecting,
+    reconnecting,
     lastError,
     transcript,
     activity,
@@ -106,7 +108,10 @@ export default function VoiceAssistantOrb() {
             <span className={`h-2 w-2 rounded-full ${dotClass}`} aria-hidden="true" />
             <span>
               {phase === 'error' && t('voiceAssistant.error', 'Problem with the voice connection')}
-              {phase === 'connecting' && t('voiceAssistant.connecting', 'Connecting…')}
+              {phase === 'connecting' &&
+                (reconnecting
+                  ? t('voiceAssistant.reconnecting', 'Connection lost — reconnecting…')
+                  : t('voiceAssistant.connecting', 'Connecting…'))}
               {phase === 'idle' && t('voiceAssistant.idle', 'Not connected')}
               {phase === 'confirming' && t('voiceAssistant.awaitingConfirmation', 'Waiting for your confirmation')}
               {phase === 'executing' && t('voiceAssistant.executing', 'Working on it…')}
@@ -115,7 +120,30 @@ export default function VoiceAssistantOrb() {
             </span>
           </div>
 
-          {lastError && <p className="text-xs text-destructive mb-3">{lastError}</p>}
+          {lastError && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 mb-3 space-y-2">
+              <p className="text-xs text-destructive leading-relaxed">{lastError}</p>
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={start}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 transition shadow-sm"
+                >
+                  <RefreshCw size={11} />
+                  {t('voiceAssistant.retry', 'Retry')}
+                </button>
+                <a
+                  href="https://status.elevenlabs.io"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition underline underline-offset-2"
+                >
+                  {t('voiceAssistant.statusPage', 'ElevenLabs Status')}
+                  <ExternalLink size={10} />
+                </a>
+              </div>
+            </div>
+          )}
 
           {pendingConfirmation?.message && (
             <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-2 mb-3 space-y-2">
@@ -218,10 +246,14 @@ export default function VoiceAssistantOrb() {
       >
         {connecting ? (
           <Loader2 size={22} className="animate-spin" />
-        ) : connected ? (
-          <Mic size={22} />
         ) : (
-          <Mic size={22} className="text-primary" />
+          <img
+            src={voiceAssistantIcon}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            className="h-9 w-9 object-contain select-none pointer-events-none"
+          />
         )}
         {(phase === 'error' || phase === 'confirming') && (
           <span

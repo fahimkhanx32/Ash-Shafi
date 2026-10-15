@@ -31,6 +31,7 @@ import { useToast } from '../../providers/ToastProvider.jsx';
 import { useConfirm } from '../../providers/ConfirmProvider.jsx';
 import * as patientsService from '../../services/patientsService.js';
 import * as prescriptionsService from '../../services/prescriptionsService.js';
+import * as staffService from '../../services/staffService.js';
 import { extractApiError } from '../../services/apiClient.js';
 import { BLOOD_GROUPS } from '../../constants/patients.js';
 import { PRESCRIPTIONS_WRITE_ROLES } from '../../constants/roles.js';
@@ -57,6 +58,55 @@ import MsWordEditorBox from '../../components/prescriptions/MsWordEditorBox.jsx'
 import FollowUpDialog from '../../components/prescriptions/FollowUpDialog.jsx';
 import PatientInfoEditDialog from '../../components/prescriptions/PatientInfoEditDialog.jsx';
 import { formatDate } from '../../lib/dateFormat.js';
+
+// ---- Prescription date helpers --------------------------------------------
+// The form keeps the date as a plain "YYYY-MM-DD" string (what <input type="date">
+// speaks). It is only converted to an ISO timestamp when talking to the API, so
+// back-dating (e.g. 5 Dec 2024) never shifts a day because of the timezone.
+const pad2 = (n) => String(n).padStart(2, '0');
+const toDateInput = (value) => {
+  const d = value ? new Date(value) : new Date();
+  if (Number.isNaN(d.getTime())) return toDateInput(null);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+};
+const dateInputToIso = (value) => {
+  if (!value) return undefined;
+  const [y, m, d] = String(value).split('-').map(Number);
+  if (!y || !m || !d) return undefined;
+  // Today -> "right now" (the API rejects future timestamps); any earlier day -> local noon.
+  if (value === toDateInput(new Date())) return new Date().toISOString();
+  return new Date(y, m - 1, d, 12, 0, 0).toISOString();
+};
+const toPayload = (f) => ({ ...f, prescriptionDate: dateInputToIso(f.prescriptionDate) });
+
+// ---- Letterhead: built from the logged-in doctor's own profile -------------
+const withDoctorTitle = (name, role) => {
+  const n = (name || '').trim();
+  if (!n) return '';
+  return role === 'DOCTOR' && !/^(dr\.?|prof\.?|professor)\b/i.test(n) ? `Dr. ${n}` : n;
+};
+const buildDoctorSnapshotFromProfile = (user, staff) => {
+  const dd = staff?.doctorDetails || {};
+  return {
+    name: withDoctorTitle(user?.name, user?.role),
+    nameBangla: dd.nameBangla || '',
+    degreesEnglish: (dd.qualifications || []).join(', '),
+    degreesBangla: dd.degreesBangla || '',
+    designationEnglish: dd.designationEnglish || '',
+    designationBangla: dd.designationBangla || '',
+    departmentEnglish: dd.departmentEnglish || staff?.department || '',
+    departmentBangla: dd.departmentBangla || '',
+    hospitalEnglish: dd.hospitalEnglish || '',
+    hospitalBangla: dd.hospitalBangla || '',
+    specialtyEnglish: dd.specialization || '',
+    specialtyBangla: dd.specialtyBangla || '',
+    registrationNumber: dd.registrationNumber || '',
+    chamberInfo: dd.chamberInfo || '',
+    visitingHours: dd.visitingHours || '',
+    email: user?.email || '',
+    phone: staff?.phone || '',
+  };
+};
 
 const BLOOD_GROUP_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown', 'Not Tested'];
 
@@ -88,6 +138,7 @@ const initialPrescriptionState = {
   testAdvices: '',
   nextFollowUp: { date: null, time: '', instruction: '', quickOption: '' },
   followUpDate: null,
+  prescriptionDate: '',
   patientSnapshot: {},
   doctorSnapshot: {},
 };
@@ -170,13 +221,15 @@ export default function PrescriptionWorkspacePage() {
   }, [containerWidth, zoomLevel, isAutoFit, viewMode, canWrite]);
 
   // Load Patient Profile and Existing Prescription
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     setError('');
     try {
-      const [patientData, pastList] = await Promise.all([
+      const [patientData, pastList, myStaffProfile] = await Promise.all([
         patientsService.getPatient(patientProfileId),
         prescriptionsService.listPrescriptionsByPatient(patientProfileId),
+        // Only needed for a brand-new prescription; non-staff accounts just get null.
+        isNew ? staffService.getMyStaffProfile().catch(() => null) : Promise.resolve(null),
       ]);
       setPatient(patientData);
       setPreviousPrescriptions(pastList || []);
@@ -208,20 +261,8 @@ export default function PrescriptionWorkspacePage() {
         setForm({
           ...initialPrescriptionState,
           patientSnapshot: initialPatSnapshot,
-          doctorSnapshot: {
-            name: user?.name ? `Dr. ${user.name}` : 'Dr. Miran',
-            nameBangla: 'প্রফেসর ডা. রেজওয়ানুর রহমান',
-            degreesEnglish: 'MBBS, MD (Nephrology), FRCP (Edin)',
-            degreesBangla: 'এমবিবিএস, এমডি (নেফ্রোলজি), এফআরসিপি (এডিন)',
-            designationEnglish: 'Professor & Head',
-            designationBangla: 'অধ্যাপক ও বিভাগীয় প্রধান',
-            departmentEnglish: 'Department of Nephrology',
-            departmentBangla: 'কিডনী রোগ ও ডায়ালাইসিস বিভাগ',
-            hospitalEnglish: 'Bangladesh Medical College Hospital, Dhaka',
-            hospitalBangla: 'বাংলাদেশ মেডিকেল কলেজ হাসপাতাল, ঢাকা',
-            specialtyEnglish: 'Kidney Disease and Transplant Specialist',
-            specialtyBangla: 'কিডনী রোগ ও কিডনি প্রতিস্থাপন বিশেষজ্ঞ',
-          },
+          prescriptionDate: toDateInput(new Date()),
+          doctorSnapshot: buildDoctorSnapshotFromProfile(user, myStaffProfile),
         });
       } else {
         const existing = await prescriptionsService.getPrescription(prescriptionId);
@@ -248,6 +289,7 @@ export default function PrescriptionWorkspacePage() {
           testAdvices: existing.testAdvices || '',
           nextFollowUp: existing.nextFollowUp || {},
           followUpDate: existing.followUpDate || null,
+          prescriptionDate: toDateInput(existing.prescriptionDate),
           patientSnapshot: existing.patientSnapshot || {},
           doctorSnapshot: existing.doctorSnapshot || {},
         });
@@ -261,6 +303,14 @@ export default function PrescriptionWorkspacePage() {
 
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    const handlePrescriptionUpdated = () => {
+      loadData({ silent: true });
+    };
+    window.addEventListener('prescription:updated', handlePrescriptionUpdated);
+    return () => window.removeEventListener('prescription:updated', handlePrescriptionUpdated);
   }, [loadData]);
 
   // Form field updater with debounced autosave for drafts
@@ -525,7 +575,7 @@ export default function PrescriptionWorkspacePage() {
         setAutosaveStatus('saving');
         autosaveTimeoutRef.current = setTimeout(() => {
           prescriptionsService
-            .updatePrescription(prescription.id || prescription._id, next)
+            .updatePrescription(prescription.id || prescription._id, toPayload(next))
             .then(() => {
               setAutosaveStatus('saved');
               setTimeout(() => setAutosaveStatus('idle'), 2500);
@@ -544,7 +594,7 @@ export default function PrescriptionWorkspacePage() {
     setError('');
     try {
       if (isNew) {
-        const created = await prescriptionsService.createPrescription(patientProfileId, form);
+        const created = await prescriptionsService.createPrescription(patientProfileId, toPayload(form));
         toast({
           title: t('clinical.prescription.draftSavedToast', 'Prescription Draft Saved'),
           description: `Prescription ID: ${created.prescriptionId}`,
@@ -554,7 +604,7 @@ export default function PrescriptionWorkspacePage() {
           replace: true,
         });
       } else {
-        const updated = await prescriptionsService.updatePrescription(prescription.id || prescription._id, form);
+        const updated = await prescriptionsService.updatePrescription(prescription.id || prescription._id, toPayload(form));
         setPrescription(updated);
         toast({
           title: t('clinical.prescription.draftSavedToast', 'Prescription Draft Updated'),
@@ -585,10 +635,10 @@ export default function PrescriptionWorkspacePage() {
     try {
       let currentId = prescription?.id || prescription?._id;
       if (isNew) {
-        const created = await prescriptionsService.createPrescription(patientProfileId, form);
+        const created = await prescriptionsService.createPrescription(patientProfileId, toPayload(form));
         currentId = created.id || created._id;
       } else {
-        await prescriptionsService.updatePrescription(currentId, form);
+        await prescriptionsService.updatePrescription(currentId, toPayload(form));
       }
 
       const finalized = await prescriptionsService.finalizePrescription(currentId);
@@ -837,6 +887,30 @@ export default function PrescriptionWorkspacePage() {
             </div>
           </div>
 
+          {/* Prescription date — defaults to today, can be back-dated (e.g. a visit from 5 Dec 2024) */}
+          <div className="flex items-center gap-2">
+            <label htmlFor="rx-date" className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+              <Calendar size={13} /> {t('clinical.prescription.date', 'Prescription date')}:
+            </label>
+            <input
+              id="rx-date"
+              type="date"
+              disabled={!canWrite}
+              max={toDateInput(new Date())}
+              value={form.prescriptionDate || ''}
+              onChange={(e) => {
+                // Ignore a cleared field so the prescription never ends up undated.
+                if (e.target.value) updateForm({ prescriptionDate: e.target.value });
+              }}
+              className="h-8 px-2.5 rounded-lg border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-70"
+            />
+            {form.prescriptionDate && form.prescriptionDate !== toDateInput(new Date()) ? (
+              <Badge variant="warning" className="text-[10px] font-semibold">
+                {t('clinical.prescription.backdated', 'Back-dated')}
+              </Badge>
+            ) : null}
+          </div>
+
           {/* Blood Group Dropdown Selector */}
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-muted-foreground">{t('clinical.fields.bloodGroup', 'Blood Group')}:</span>
@@ -1043,7 +1117,7 @@ export default function PrescriptionWorkspacePage() {
                     ...form,
                     id: prescription?.id || prescription?._id || 'DRAFT-PREVIEW',
                     prescriptionId: prescription?.prescriptionId || 'RX-2026-000001',
-                    prescriptionDate: prescription?.prescriptionDate || new Date(),
+                    prescriptionDate: dateInputToIso(form.prescriptionDate) || prescription?.prescriptionDate || new Date(),
                     verificationToken: prescription?.verificationToken || 'DEMO-TOKEN-2026',
                   }}
                   scale={effectiveScale}

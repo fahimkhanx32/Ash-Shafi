@@ -424,12 +424,131 @@ export const LAB_REQUISITION_SCOPED_TOOLS = Object.freeze([
   voiceToolSchemas[name] = voiceToolSchemas[name].keys({ patientProfileId: objectId });
 });
 
+const FREQUENCY_MAP = {
+  '1+0+0': '1 + 0 + 0',
+  '1-0-0': '1 + 0 + 0',
+  '1 0 0': '1 + 0 + 0',
+  '0+1+0': '0 + 1 + 0',
+  '0-1-0': '0 + 1 + 0',
+  '0+0+1': '0 + 0 + 1',
+  '0-0-1': '0 + 0 + 1',
+  '1+1+1': '1 + 1 + 1',
+  '1-1-1': '1 + 1 + 1',
+  '1 1 1': '1 + 1 + 1',
+  '1+0+1': '1 + 0 + 1',
+  '1-0-1': '1 + 0 + 1',
+  '1 0 1': '1 + 0 + 1',
+  '1+1+0': '1 + 1 + 0',
+  '1-1-0': '1 + 1 + 0',
+  '0+1+1': '0 + 1 + 1',
+  '0-1-1': '0 + 1 + 1',
+  '1+1+1+1': '1 + 1 + 1 + 1',
+  '1-1-1-1': '1 + 1 + 1 + 1',
+  'once daily': 'ONCE_DAILY',
+  'once a day': 'ONCE_DAILY',
+  'od': 'ONCE_DAILY',
+  'twice daily': 'TWICE_DAILY',
+  'twice a day': 'TWICE_DAILY',
+  'bid': 'TWICE_DAILY',
+  'b.i.d.': 'TWICE_DAILY',
+  'bd': 'TWICE_DAILY',
+  'three times daily': 'THREE_TIMES_DAILY',
+  'three times a day': 'THREE_TIMES_DAILY',
+  'tid': 'THREE_TIMES_DAILY',
+  't.i.d.': 'THREE_TIMES_DAILY',
+  'four times daily': 'FOUR_TIMES_DAILY',
+  'four times a day': 'FOUR_TIMES_DAILY',
+  'qid': 'FOUR_TIMES_DAILY',
+  'q.i.d.': 'FOUR_TIMES_DAILY',
+  'every other day': 'EVERY_OTHER_DAY',
+  'qod': 'EVERY_OTHER_DAY',
+  'weekly': 'WEEKLY',
+  'as needed': 'AS_NEEDED',
+  'prn': 'AS_NEEDED',
+};
+
+const FOOD_MAP = {
+  'after meal': 'After Meal',
+  'after meals': 'After Meal',
+  'after food': 'After Meal',
+  'before meal': 'Before Meal',
+  'before meals': 'Before Meal',
+  'before food': 'Before Meal',
+  'with food': 'With Food',
+  'with meals': 'With Food',
+  'empty stomach': 'Empty Stomach',
+  'anytime': 'Anytime',
+  'খাবার পর': 'খাবার পরে',
+  'খাবার পরে': 'খাবার পরে',
+  'খাবার আগে': 'খাবার আগে',
+  'খাবারের সাথে': 'খাবারের সাথে',
+  'খালি পেটে': 'খালি পেটে',
+  'যেকোনো সময়': 'যেকোনো সময়',
+};
+
+const DURATION_UNIT_MAP = {
+  'day': 'Days',
+  'days': 'Days',
+  'week': 'Weeks',
+  'weeks': 'Weeks',
+  'month': 'Months',
+  'months': 'Months',
+  'year': 'Years',
+  'years': 'Years',
+  'continuous': 'Continuous',
+  'চলবে': 'Continuous',
+};
+
+const CLINICAL_NOTE_FIELD_MAP = {
+  'chief_complaint': 'chiefComplaint',
+  'chief_complaints': 'chiefComplaint',
+  'chief complaint': 'chiefComplaint',
+  'chief complaints': 'chiefComplaint',
+  'comorbidities': 'coMorbidities',
+  'co_morbidities': 'coMorbidities',
+  'co-morbidities': 'coMorbidities',
+  'past_history': 'pastHistory',
+  'past history': 'pastHistory',
+  'personal_history': 'personalHistory',
+  'personal history': 'personalHistory',
+  'smoking_history': 'smokingHistory',
+  'smoking history': 'smokingHistory',
+  'menstrual_history': 'menstrualHistory',
+  'menstrual history': 'menstrualHistory',
+  'drug_history': 'drugHistory',
+  'drug history': 'drugHistory',
+};
+
 export const validateToolArgs = (toolName, args) => {
   const schema = voiceToolSchemas[toolName];
   if (!schema) {
     return { error: `Unknown tool "${toolName}".` };
   }
-  const { error, value } = schema.validate(args || {}, { abortEarly: false, stripUnknown: true });
+
+  const normalized = { ...(args || {}) };
+  if (toolName === 'add_medicine_to_prescription' || toolName === 'update_medicine_on_prescription') {
+    if (typeof normalized.frequency === 'string') {
+      const key = normalized.frequency.trim().toLowerCase();
+      if (FREQUENCY_MAP[key]) normalized.frequency = FREQUENCY_MAP[key];
+    }
+    if (typeof normalized.foodInstruction === 'string') {
+      const key = normalized.foodInstruction.trim().toLowerCase();
+      if (FOOD_MAP[key]) normalized.foodInstruction = FOOD_MAP[key];
+    }
+    if (typeof normalized.durationUnit === 'string') {
+      const key = normalized.durationUnit.trim().toLowerCase();
+      if (DURATION_UNIT_MAP[key]) normalized.durationUnit = DURATION_UNIT_MAP[key];
+    }
+  }
+
+  if (toolName === 'add_clinical_note' || toolName === 'update_clinical_note') {
+    if (typeof normalized.field === 'string') {
+      const key = normalized.field.trim().toLowerCase();
+      if (CLINICAL_NOTE_FIELD_MAP[key]) normalized.field = CLINICAL_NOTE_FIELD_MAP[key];
+    }
+  }
+
+  const { error, value } = schema.validate(normalized, { abortEarly: false, stripUnknown: true });
   if (error) {
     return { error: error.details.map((d) => d.message).join('; ') };
   }
